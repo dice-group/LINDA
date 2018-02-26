@@ -3,5 +3,6 @@
 .classpath
 .settings
 .project
+.cache-main
 *.log
 /Data/
