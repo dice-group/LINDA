@@ -1,17 +1,31 @@
 package org.aksw.dice.linda.reader
 
-
 import java.io.File
 
-import org.apache.spark.sql.SparkSession
-import net.sansa_stack.rdf.spark.model.JenaSparkRDDOps
-import org.apache.jena.graph.Node_URI
-import net.sansa_stack.rdf.spark.model.TripleRDD
-import org.apache.jena.graph.Node_Literal
-import org.apache.jena.sparql.util.NodeFactoryExtra
-import net.sansa_stack.rdf.spark.io.NTripleReader
+import org.apache.spark.sql.{ DataFrame, SparkSession, _ }
+
+import org.slf4j.LoggerFactory
+import org.aksw.dice.linda.datastructure.RDFTriple
+import org.apache.spark.SparkContext
 
 object TripleReader {
+  private val logger = LoggerFactory.getLogger(this.getClass.getName)
+
+  case class Atom(rdf: RDFTriple)
+
+  def loadFromFileDF(path: String, sc: SparkContext, sqlContext: SQLContext): DataFrame = {
+    val startTime = System.currentTimeMillis()
+    import sqlContext.implicits._
+
+    val triples = sc.textFile(path)
+      .map(line => line.replace("<", "").replace(">", "").split("\\s+")) // line to tokens
+      .map(tokens => Atom(RDFTriple(tokens(0), tokens(1), tokens(2).stripSuffix(".")))) // tokens to triple
+      .toDF()
+
+    logger.info("finished loading DS " + triples.count() + " triples in " + (System.currentTimeMillis() - startTime) + "ms.")
+    
+    return triples
+  }
 
   def main(args: Array[String]) = {
     val input = "Data/rdf.nt"
@@ -21,25 +35,10 @@ object TripleReader {
       .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
       .appName("Triple reader example (" + input + ")")
       .getOrCreate()
-
-    val triples = sparkSession.sparkContext.textFile(input)
-    triples.take(5).foreach(println(_))
-    triples.cache()
-
-    val nrOfTriples = triples.count()
-    println("Count: " + nrOfTriples)
-
-    val triplesRDD = NTripleReader.load(sparkSession, new File(input))
-
-    val graph: TripleRDD = triplesRDD
-
-    //println("Number of triples: " + graph.find(ANY, ANY, ANY).distinct.count())
-    println("Number of subjects: " + graph.getSubjects.distinct.count())
-    println("Number of predicates: " + graph.getPredicates.distinct.count())
-    println("Number of objects: " + graph.getPredicates.distinct.count())
-
+    val sc = sparkSession.sparkContext
+    val sqlContext = new org.apache.spark.sql.SQLContext(sc)
+    loadFromFileDF(input, sc, sqlContext)
     sparkSession.stop
 
   }
-
 }
