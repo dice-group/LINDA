@@ -16,7 +16,6 @@ class RDF2TransactionMap {
   val itemId: Double = 0
   val subjectId: Double = 0
 
-  def readFromDF(kb: DataFrame) {
 
-  }
+  
 }

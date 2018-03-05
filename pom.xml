@@ -15,8 +15,8 @@
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<scala.version>2.11.8</scala.version>
 		<scala.binary.version>2.11</scala.binary.version>
-		<spark.version>2.0.0</spark.version>
-		<sansa.version>0.2.0</sansa.version>
+		<spark.version>2.2.1</spark.version>
+		<sansa.version>0.3.1-SNAPSHOT</sansa.version>
 		<jena.version>3.1.0</jena.version>
 	</properties>
 
@@ -28,12 +28,13 @@
 			<version>${scala.version}</version>
 		</dependency>
 
-		<!-- Apache Spark Core -->
-		<dependency>
-			<groupId>org.apache.spark</groupId>
-			<artifactId>spark-core_${scala.binary.version}</artifactId>
-			<version>${spark.version}</version>
-		</dependency>
+	<!-- RDF Layer -->
+			<dependency>
+				<groupId>net.sansa-stack</groupId>
+				<artifactId>sansa-rdf-spark_${scala.binary.version}</artifactId>
+				<version>${sansa.version}</version>
+			</dependency>
+	
 		<!-- Apache Spark SQL -->
 		<dependency>
 			<groupId>org.apache.spark</groupId>
@@ -50,7 +51,7 @@
 		</dependency>
 
 		<!-- SANSA RDF -->
-		
+
 		<dependency>
 			<groupId>net.sansa-stack</groupId>
 			<artifactId>sansa-rdf-spark-core_${scala.binary.version}</artifactId>
