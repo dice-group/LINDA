@@ -11,7 +11,7 @@ import org.apache.spark.SparkContext
 object TripleReader {
   private val logger = LoggerFactory.getLogger(this.getClass.getName)
 
-
+ import net.sansa_stack.rdf.spark.io.rdf._
   def main(args: Array[String]) = {
     val input = "Data/rdf.nt"
 

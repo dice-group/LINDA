@@ -4,7 +4,7 @@ import com.google.common.collect.{ HashBiMap, BiMap }
 import collection.mutable.{ HashMap, MultiMap, Set }
 import org.apache.spark.sql.{DataFrame, SQLContext, SparkSession, _}
 import org.aksw.dice.linda.datastructure.UnaryPredicate
-import net.sansa_stack.ml.spark.mining.amieSpark
+import net.sansa_stack.ml.spark.mining.amieSpark.RDFTriple
 
 class RDF2TransactionMap {
 
