@@ -3,7 +3,7 @@
 	<modelVersion>4.0.0</modelVersion>
 
 	<artifactId>LINDA</artifactId>
-    <groupId>org.aksw.dice</groupId>
+	<groupId>org.aksw.dice</groupId>
 	<version>0.1.0</version>
 
 	<name>LINDA</name>
@@ -16,7 +16,7 @@
 		<scala.version>2.11.8</scala.version>
 		<scala.binary.version>2.11</scala.binary.version>
 		<spark.version>2.0.0</spark.version>
-		<sansa.version>0.1.0</sansa.version>
+		<sansa.version>0.2.0</sansa.version>
 		<jena.version>3.1.0</jena.version>
 	</properties>
 
@@ -50,33 +50,21 @@
 		</dependency>
 
 		<!-- SANSA RDF -->
+		<!-- https://mvnrepository.com/artifact/net.sansa-stack/sansa-rdf-spark-core -->
 		<dependency>
 			<groupId>net.sansa-stack</groupId>
-			<artifactId>sansa-rdf-spark-bundle</artifactId>
+			<artifactId>sansa-rdf-spark-core_${scala.binary.version}</artifactId>
 			<version>${sansa.version}</version>
 		</dependency>
 
-		<!-- SANSA OWL -->
-		<dependency>
-			<groupId>net.sansa-stack</groupId>
-			<artifactId>sansa-owl-spark</artifactId>
-			<version>0.1.0-SNAPSHOT</version>
-		</dependency>
 
-		<!-- SANSA Inference -->
-		<!-- <dependency> <groupId>${project.groupId}</groupId> <artifactId>sansa-inference-parent_${scala.binary.version}</artifactId> 
-			<version>${sansa.version}</version> </dependency> -->
-		<dependency>
-			<groupId>net.sansa-stack</groupId>
-			<artifactId>sansa-inference-spark_${scala.binary.version}</artifactId>
-			<version>${sansa.version}</version>
-		</dependency>
 
-		<!-- SANSA Querying -->
+		<!-- ML Layer -->
+		<!-- https://mvnrepository.com/artifact/net.sansa-stack/sansa-ml-spark -->
 		<dependency>
 			<groupId>net.sansa-stack</groupId>
-			<artifactId>sansa-query-spark-bundle</artifactId>
-			<version>${sansa.version}</version>
+			<artifactId>sansa-ml-spark_2.11</artifactId>
+			<version>0.2.0</version>
 		</dependency>
 
 		<!-- Test -->
