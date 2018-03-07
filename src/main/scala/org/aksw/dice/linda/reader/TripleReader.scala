@@ -9,6 +9,8 @@ import org.apache.jena.riot.Lang
 
 import org.apache.spark.SparkContext
 import net.sansa_stack.rdf.spark.io.rdf._
+import org.aksw.dice.linda.utils.RDF2TransactionMap
+
 
 object TripleReader {
   private val logger = LoggerFactory.getLogger(this.getClass.getName)
@@ -23,8 +25,12 @@ object TripleReader {
       .getOrCreate()
 
     val triplesDF = sparkSession.read.rdf(Lang.NTRIPLES)(input)
-    triplesDF.collect().foreach(println)
-
+    val transactionMap = new RDF2TransactionMap()
+    transactionMap.readFromDF(triplesDF)
+    val transactions = transactionMap.subject2operatorIds
+    this.logger.info(" Total number of Unary operators " + transactionMap.operator2Ids.size())
+    this.logger.info("Total number of transactions " + transactions.keySet.size)
+    transactions.foreach(x => println(x._1 + "-->" + x._2))
     sparkSession.stop
 
   }
