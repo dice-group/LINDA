@@ -5,6 +5,8 @@ import collection.mutable.{ HashMap, MultiMap, Set }
 import org.apache.spark.sql.{ DataFrame, SQLContext, SparkSession, _ }
 import org.aksw.dice.linda.datastructure.UnaryPredicate
 import org.slf4j.LoggerFactory
+
+
 class RDF2TransactionMap {
   private val logger = LoggerFactory.getLogger(this.getClass.getName)
 
@@ -46,4 +48,6 @@ class RDF2TransactionMap {
     }
 
   }
+
+ 
 }
