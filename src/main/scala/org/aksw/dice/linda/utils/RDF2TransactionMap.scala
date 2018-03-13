@@ -6,7 +6,7 @@ import org.apache.spark.sql.{ DataFrame, SQLContext, SparkSession, _ }
 import org.aksw.dice.linda.datastructure.UnaryPredicate
 import org.slf4j.LoggerFactory
 
-class RDF2TransactionMap {
+object RDF2TransactionMap {
   private val logger = LoggerFactory.getLogger(this.getClass.getName)
 
   var subject2operatorIds = new HashMap[String, Set[Int]] with MultiMap[String, Int]

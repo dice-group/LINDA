@@ -19,30 +19,24 @@ object RuleMiner {
       .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
       .appName("LINDA (" + input + ")")
       .getOrCreate()
-
     val triplesDF = spark.read.rdf(Lang.NTRIPLES)(input)
-    val transactionMap = new RDF2TransactionMap()
-    transactionMap.readFromDF(triplesDF)
+    RDF2TransactionMap.readFromDF(triplesDF)
     import spark.implicits._
-    val transactionscount = transactionMap.subject2operatorIds
+    val transactionscount = RDF2TransactionMap.subject2operatorIds
 
     var transactions = new ListBuffer[String]()
     for ((k, v) <- transactionscount) {
       transactions += v.mkString(" ")
     }
-    this.logger.info(" Total number of Unary operators " + transactionMap.operator2Ids.size())
-    this.logger.info(" Total number of Subjects " + transactionMap.id2Subject.keySet().size())
+    this.logger.info(" Total number of Unary operators " + RDF2TransactionMap.operator2Ids.size())
+    this.logger.info(" Total number of Subjects " + RDF2TransactionMap.id2Subject.keySet().size())
     this.logger.info("Total number of transactions " + transactionscount.keySet.size)
     val dataset = spark.createDataset(transactions).map(t => t.split(" ")).toDF("items")
     val fpgrowth = new FPGrowth().setItemsCol("items").setMinSupport(0).setMinConfidence(0.01)
     val model = fpgrowth.fit(dataset)
 
-    val rules = model.associationRules.collect()
-    for (r <- rules) {
-      print(r.getList(0))
-      print(r.getInt(1))
-      print(r.getInt(2))
-    }
+    model.associationRules.show()
+
     spark.stop
   }
 
