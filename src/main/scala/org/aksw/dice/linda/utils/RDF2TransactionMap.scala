@@ -6,7 +6,6 @@ import org.apache.spark.sql.{ DataFrame, SQLContext, SparkSession, _ }
 import org.aksw.dice.linda.datastructure.UnaryPredicate
 import org.slf4j.LoggerFactory
 
-
 class RDF2TransactionMap {
   private val logger = LoggerFactory.getLogger(this.getClass.getName)
 
@@ -48,6 +47,13 @@ class RDF2TransactionMap {
     }
 
   }
+  
+  def writeRulestoFile() {
+    import java.io._
+    val file = new File("Horn Rules!!")
+    val bw = new BufferedWriter(new FileWriter(file))
+    bw.write("")
+    bw.close()
+  }
 
- 
 }
