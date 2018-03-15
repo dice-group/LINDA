@@ -19,9 +19,12 @@ object RuleMiner {
       .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
       .appName("LINDA (" + input + ")")
       .getOrCreate()
+    val context = spark.sparkContext
     val triplesDF = spark.read.rdf(Lang.NTRIPLES)(input)
-    RDF2TransactionMap.readFromDF(triplesDF)
-    val subject2operatorIdsRDD = spark.sparkContext.parallelize(RDF2TransactionMap.subject2operatorIds.toSeq)
+    val a = RDF2TransactionMap.readFromDF(triplesDF)
+
+    val subject2operatorIdsRDD = context.parallelize(RDF2TransactionMap.subject2operatorIds.toSeq)
+    print(subject2operatorIdsRDD.collect().length)
     spark.stop
   }
 

@@ -19,7 +19,8 @@ object RDF2TransactionMap {
   var subjectId: Int = 0
 
   def readFromDF(kb: DataFrame) {
-    kb.rdd.map(row => writeToMaps(row.getString(0), row.getString(1), row.getString(2)))
+
+    kb.distinct().foreach(row => (writeToMaps(row.getString(0), row.getString(1), row.getString(2))))
   }
 
   def writeToMaps(subject: String, pred: String, obj: String) {
@@ -28,6 +29,7 @@ object RDF2TransactionMap {
       this.itemId += 1
       operator2Ids.put(predObj, itemId)
     }
+
     var id = operator2Ids.get(predObj)
     predObj.id = id
     subject2operatorIds.addBinding(subject, id)
@@ -37,6 +39,7 @@ object RDF2TransactionMap {
         subjectId
       })
     }
+
   }
 
   def createInverseMaps() {
