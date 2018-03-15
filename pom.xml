@@ -28,13 +28,13 @@
 			<version>${scala.version}</version>
 		</dependency>
 
-	<!-- RDF Layer -->
-			<dependency>
-				<groupId>net.sansa-stack</groupId>
-				<artifactId>sansa-rdf-spark_${scala.binary.version}</artifactId>
-				<version>${sansa.version}</version>
-			</dependency>
-	
+		<!-- RDF Layer -->
+		<dependency>
+			<groupId>net.sansa-stack</groupId>
+			<artifactId>sansa-rdf-spark_${scala.binary.version}</artifactId>
+			<version>${sansa.version}</version>
+		</dependency>
+
 		<!-- Apache Spark SQL -->
 		<dependency>
 			<groupId>org.apache.spark</groupId>
@@ -57,16 +57,15 @@
 			<artifactId>sansa-rdf-spark-core_${scala.binary.version}</artifactId>
 			<version>${sansa.version}</version>
 		</dependency>
+		
+		
+		<!-- https://mvnrepository.com/artifact/org.apache.spark/spark-mllib -->
+<dependency>
+    <groupId>org.apache.spark</groupId>
+    <artifactId>spark-mllib_2.10</artifactId>
+    <version>2.2.0</version>
+</dependency>
 
-
-
-		<!-- ML Layer -->
-		<!-- https://mvnrepository.com/artifact/net.sansa-stack/sansa-ml-spark -->
-		<dependency>
-			<groupId>net.sansa-stack</groupId>
-			<artifactId>sansa-ml-spark_${scala.binary.version}</artifactId>
-			<version>${sansa.version}</version>
-		</dependency>
 
 		<!-- Test -->
 		<dependency>
