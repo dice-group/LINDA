@@ -21,22 +21,7 @@ object RuleMiner {
       .getOrCreate()
     val triplesDF = spark.read.rdf(Lang.NTRIPLES)(input)
     RDF2TransactionMap.readFromDF(triplesDF)
-    import spark.implicits._
-    val transactionscount = RDF2TransactionMap.subject2operatorIds
-
-    var transactions = new ListBuffer[String]()
-    for ((k, v) <- transactionscount) {
-      transactions += v.mkString(" ")
-    }
-    this.logger.info(" Total number of Unary operators " + RDF2TransactionMap.operator2Ids.size())
-    this.logger.info(" Total number of Subjects " + RDF2TransactionMap.id2Subject.keySet().size())
-    this.logger.info("Total number of transactions " + transactionscount.keySet.size)
-    val dataset = spark.createDataset(transactions).map(t => t.split(" ")).toDF("items")
-    val fpgrowth = new FPGrowth().setItemsCol("items").setMinSupport(0).setMinConfidence(0.01)
-    val model = fpgrowth.fit(dataset)
-
-    model.associationRules.show()
-
+    val subject2operatorIdsRDD = spark.sparkContext.parallelize(RDF2TransactionMap.subject2operatorIds.toSeq)
     spark.stop
   }
 

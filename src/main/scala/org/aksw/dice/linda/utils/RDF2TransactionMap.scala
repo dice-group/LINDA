@@ -5,6 +5,7 @@ import collection.mutable.{ HashMap, MultiMap, Set }
 import org.apache.spark.sql.{ DataFrame, SQLContext, SparkSession, _ }
 import org.aksw.dice.linda.datastructure.UnaryPredicate
 import org.slf4j.LoggerFactory
+import org.apache.spark.rdd.RDD
 
 object RDF2TransactionMap {
   private val logger = LoggerFactory.getLogger(this.getClass.getName)
@@ -18,36 +19,31 @@ object RDF2TransactionMap {
   var subjectId: Int = 0
 
   def readFromDF(kb: DataFrame) {
-    val kbrows = kb.collect()
-    for (row <- kbrows) {
-      var subject = row.getString(0)
-      var predicate = row.getString(1)
-      var obj = row.getString(2)
-
-      var predObj = new UnaryPredicate(-1, predicate, obj)
-
-      if (!operator2Ids.containsKey(predObj)) {
-        this.itemId += 1
-        operator2Ids.put(predObj, itemId)
-      }
-
-      var id = operator2Ids.get(predObj)
-      predObj.id = id
-      subject2operatorIds.addBinding(subject, id)
-      if (!subject2Id.containsKey(subject)) {
-        subject2Id.put(subject, this.synchronized {
-          this.subjectId = this.subjectId + 1
-          subjectId
-        })
-
-        id2Subject = subject2Id.inverse()
-        id2Operator = operator2Ids.inverse()
-
-      }
-    }
-
+    kb.rdd.map(row => writeToMaps(row.getString(0), row.getString(1), row.getString(2)))
   }
-  
+
+  def writeToMaps(subject: String, pred: String, obj: String) {
+    var predObj = new UnaryPredicate(-1, pred, obj)
+    if (!operator2Ids.containsKey(predObj)) {
+      this.itemId += 1
+      operator2Ids.put(predObj, itemId)
+    }
+    var id = operator2Ids.get(predObj)
+    predObj.id = id
+    subject2operatorIds.addBinding(subject, id)
+    if (!subject2Id.containsKey(subject)) {
+      subject2Id.put(subject, this.synchronized {
+        this.subjectId = this.subjectId + 1
+        subjectId
+      })
+    }
+  }
+
+  def createInverseMaps() {
+    this.id2Operator = this.operator2Ids.inverse()
+    this.id2Subject = this.subject2Id.inverse()
+  }
+
   def writeRulestoFile() {
     import java.io._
     val file = new File("Horn Rules!!")
