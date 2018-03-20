@@ -1,4 +1,4 @@
-package org.aksw.dice.linda.datastructure
+package org.aksw.dice.linda.miner.datastructure
 
 class UnaryPredicate {
   var predicate: String = _
