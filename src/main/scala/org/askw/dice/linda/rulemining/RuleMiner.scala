@@ -6,7 +6,7 @@ import org.apache.jena.riot.Lang
 import net.sansa_stack.rdf.spark.io.rdf._
 import org.aksw.dice.linda.utils.RDF2TransactionMap
 import scala.collection.mutable.ListBuffer
-import org.apache.spark.mllib.fpm.FPGrowth
+import org.apache.spark.ml.fpm.FPGrowth
 
 object RuleMiner {
   private val logger = LoggerFactory.getLogger(this.getClass.getName)
@@ -23,23 +23,15 @@ object RuleMiner {
     val triplesDF = spark.read.rdf(Lang.NTRIPLES)(input)
     RDF2TransactionMap.readFromDF(triplesDF)
 
+    val operatorRDD = context.parallelize(RDF2TransactionMap.operatorList.toList)
     var subject2operatorIdsRDD = context.parallelize(RDF2TransactionMap.subject2Operator.toSeq)
+    import spark.implicits._
     var transactions = subject2operatorIdsRDD.map { case (k, v) => v.toArray }
-    val fpg = new FPGrowth()
-      .setMinSupport(0.02)
-      .setNumPartitions(10)
-    val model = fpg.run(transactions)
+    val fpgrowth = new FPGrowth().setItemsCol("items").setMinSupport(0.02).setMinConfidence(0.6)
+    val model = fpgrowth.fit(transactions.toDF("items"))
 
-    model.freqItemsets.take(5).foreach { itemset =>
-      println(s"${itemset.items.mkString("[", ",", "]")},${itemset.freq}")
-    }
-
-    val minConfidence = 0.02
-    model.generateAssociationRules(minConfidence).take(5).foreach { rule =>
-      println(s"${rule.antecedent.mkString("[", ",", "]")}============> " +
-        s"${rule.consequent.mkString("[", ",", "]")},${rule.confidence}")
-    }
-
+    model.freqItemsets.show()
+    model.associationRules.write.format("json").mode("overwrite").save("Data/rule")
     spark.stop
   }
 
