@@ -20,8 +20,8 @@ object RDF2TransactionMap {
   def writeToMaps(subject: String, pred: String, obj: String) {
     var predObj = new UnaryPredicate(pred, obj)
     operatorList += predObj
-    subject2Operator.addBinding(subject, predObj.toString())
-    operator2Subject.addBinding(predObj.toString(), subject)
+    this.subject2Operator.addBinding(subject, predObj.toString())
+    this.operator2Subject.addBinding(predObj.toString(), subject)
   }
 
 }
