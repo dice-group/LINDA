@@ -21,6 +21,8 @@ object RuleMiner {
     val context = spark.sparkContext
     val triplesDF = spark.read.rdf(Lang.NTRIPLES)(input)
     RDF2TransactionMap.readFromDF(triplesDF)
+
+    /* RDF2TransactionMap.readFromDF(triplesDF)
     import spark.implicits._
 
     var subject2OperatorRDD = context.parallelize(RDF2TransactionMap.subject2Operator.toSeq)
@@ -28,15 +30,15 @@ object RuleMiner {
     var transactions = subject2OperatorRDD.map { case (k, v) => v.toArray }
     var subject2OperatorDF = subject2OperatorRDD.map { case (k, v) => (k, v.toArray) }.toDF("key", "value")
     var operator2SubjectRDD = context.parallelize(RDF2TransactionMap.operator2Subject.toSeq)
-    
+
     var operator2SubjectDF = operator2SubjectRDD.map { case (k, v) => (k, v.toArray) }.toDF("key", "value")
 
     val fpgrowth = new FPGrowth().setItemsCol("items").setMinSupport(0.02).setMinConfidence(0.6)
     val model = fpgrowth.fit(transactions.toDF("items"))
-    val operatorRDD = context.parallelize(RDF2TransactionMap.operatorList.toList)
+
     subject2OperatorDF.write.format("parquet").mode("overwrite").save("Data/Maps/Subject2OperatorMap")
     operator2SubjectDF.write.format("parquet").mode("overwrite").save("Data/Maps/Operator2SubjectMap")
-    model.associationRules.write.format("parquet").mode("overwrite").save("Data/rule")
+    model.associationRules.write.format("parquet").mode("overwrite").save("Data/rule")*/
     spark.stop
   }
 
