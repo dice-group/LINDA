@@ -20,6 +20,6 @@ class UnaryPredicate {
   }
 
   override def toString(): String = {
-    "(" + this.predicate + "," + this.obj + ")"
+    "<" + this.predicate + "," + this.obj + ">"
   }
 }

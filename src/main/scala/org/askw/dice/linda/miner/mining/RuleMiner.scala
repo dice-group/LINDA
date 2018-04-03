@@ -1,11 +1,17 @@
 package org.askw.dice.linda.miner.mining
 
 import org.apache.spark.sql.{ SparkSession, Encoder, _ }
+import org.apache.spark.sql.expressions.Window;
 import org.slf4j.LoggerFactory
 import org.apache.jena.riot.Lang
 import net.sansa_stack.rdf.spark.io.rdf._
 import scala.collection.mutable.ListBuffer
 import org.apache.spark.ml.fpm.FPGrowth
+import org.apache.spark.sql.functions;
+import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.types._
+import org.apache.spark.sql.Encoders
+import org.aksw.dice.linda.miner.datastructure.UnaryPredicate
 
 object RuleMiner {
   private val logger = LoggerFactory.getLogger(this.getClass.getName)
@@ -20,10 +26,23 @@ object RuleMiner {
       .getOrCreate()
     val context = spark.sparkContext
     val triplesDF = spark.read.rdf(Lang.NTRIPLES)(input)
-    RDF2TransactionMap.readFromDF(triplesDF)
 
-    /* RDF2TransactionMap.readFromDF(triplesDF)
-    import spark.implicits._
+    RDF2TransactionMap.readFromDF(triplesDF)
+    val someSchema = List(
+      StructField("resource", StringType, true))
+    var subjects = RDF2TransactionMap.subject2Operator.map(r => Row(r._1))
+
+    // toDF("subject").withColumn("id", functions.row_number().over(Window.orderBy("subject")))
+    var operators = RDF2TransactionMap.subject2Operator.map(r => r._2.toList.distinct).flatMap(y => y).distinct().map(a => Row(a.toString()))
+
+    var subject2Id = spark.createDataFrame(subjects, StructType(someSchema)).withColumn("id", functions.row_number().over(Window.orderBy("resource")))
+    var operator2Id = spark.createDataFrame(operators, StructType(someSchema)).withColumn("id", functions.row_number().over(Window.orderBy("resource")))
+    operator2Id.show()
+    subject2Id.show()
+    //.toDF("operator").withColumn("id", functions.row_number().over(Window.orderBy("operator")))
+    // rows.take(5).foreach(println)
+
+    /*
 
     var subject2OperatorRDD = context.parallelize(RDF2TransactionMap.subject2Operator.toSeq)
 

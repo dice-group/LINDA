@@ -7,20 +7,22 @@ import org.aksw.dice.linda.miner.datastructure.UnaryPredicate
 import org.slf4j.LoggerFactory
 import scala.collection.mutable.ListBuffer
 import org.apache.spark.rdd.RDD
+import scala.collection.mutable
 
 object RDF2TransactionMap {
   private val logger = LoggerFactory.getLogger(this.getClass.getName)
   var operator2Id = new HashMap[String, Long]
   var subject2Id = new HashMap[String, Long]
 
-  //Temporary
-  var subject2Operator: RDD[(String, Iterable[Row])] = _
-  var operator2Subject = new HashMap[String, Set[String]] with MultiMap[String, String]
+  var subject2Operator: RDD[(String, List[UnaryPredicate])] = _
+  var read: RDD[(String, Iterable[Row])] = _
+
+ 
 
   def readFromDF(kb: DataFrame) {
-    subject2Operator = kb.rdd.groupBy(r => r.getString(0))
-    var x = subject2Operator.map(r => (r _1, createUnaryPredicate(r._2)))
-    x.foreach(println)
+    read = kb.rdd.groupBy(r => r.getString(0))
+    //TODO: Change the mapping to Dataset instead of RDD.
+    this.subject2Operator = read.map(r => (r._1, createUnaryPredicate(r._2)))
 
   }
 
@@ -29,13 +31,11 @@ object RDF2TransactionMap {
     val x = r.iterator
     while (x.hasNext) {
       var triple = x.next()
-      a += new UnaryPredicate(triple.getString(1), triple.getString(2))
+      var predObj = new UnaryPredicate(triple.getString(1), triple.getString(2))
+      a += predObj
     }
-    a.toList
-  }
-  def writeToMaps(subject: String, pred: String, obj: String) {
-    var predObj = new UnaryPredicate(pred, obj)
 
+    a.toList
   }
 
 }
