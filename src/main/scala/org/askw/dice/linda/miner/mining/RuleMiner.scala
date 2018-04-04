@@ -26,34 +26,25 @@ object RuleMiner {
       .getOrCreate()
     val context = spark.sparkContext
     val triplesDF = spark.read.rdf(Lang.NTRIPLES)(input)
-
     RDF2TransactionMap.readFromDF(triplesDF)
-    val someSchema = List(
-      StructField("resource", StringType, true))
+    val someSchema = List(StructField("resource", StringType, true))
     var subjects = RDF2TransactionMap.subject2Operator.map(r => Row(r._1))
-
-    // toDF("subject").withColumn("id", functions.row_number().over(Window.orderBy("subject")))
     var operators = RDF2TransactionMap.subject2Operator.map(r => r._2.toList.distinct).flatMap(y => y).distinct().map(a => Row(a.toString()))
 
     var subject2Id = spark.createDataFrame(subjects, StructType(someSchema)).withColumn("id", functions.row_number().over(Window.orderBy("resource")))
     var operator2Id = spark.createDataFrame(operators, StructType(someSchema)).withColumn("id", functions.row_number().over(Window.orderBy("resource")))
-    operator2Id.show()
-    subject2Id.show()
-    //.toDF("operator").withColumn("id", functions.row_number().over(Window.orderBy("operator")))
-    // rows.take(5).foreach(println)
+    var transactionsRDD = RDF2TransactionMap.subject2Operator.map(r => r._2.toArray.map(a => a.toString()))
+    val fpgrowth = new FPGrowth().setItemsCol("items").setMinSupport(0.02).setMinConfidence(0.6)
+    import spark.implicits._
+    val model = fpgrowth.fit(transactionsRDD.toDF("items"))
+    model.freqItemsets
+    model.associationRules.show()
 
     /*
 
-    var subject2OperatorRDD = context.parallelize(RDF2TransactionMap.subject2Operator.toSeq)
 
-    var transactions = subject2OperatorRDD.map { case (k, v) => v.toArray }
-    var subject2OperatorDF = subject2OperatorRDD.map { case (k, v) => (k, v.toArray) }.toDF("key", "value")
-    var operator2SubjectRDD = context.parallelize(RDF2TransactionMap.operator2Subject.toSeq)
 
-    var operator2SubjectDF = operator2SubjectRDD.map { case (k, v) => (k, v.toArray) }.toDF("key", "value")
 
-    val fpgrowth = new FPGrowth().setItemsCol("items").setMinSupport(0.02).setMinConfidence(0.6)
-    val model = fpgrowth.fit(transactions.toDF("items"))
 
     subject2OperatorDF.write.format("parquet").mode("overwrite").save("Data/Maps/Subject2OperatorMap")
     operator2SubjectDF.write.format("parquet").mode("overwrite").save("Data/Maps/Operator2SubjectMap")
