@@ -5,7 +5,7 @@ import org.apache.spark.sql.expressions.Window;
 import org.slf4j.LoggerFactory
 import org.apache.jena.riot.Lang
 import net.sansa_stack.rdf.spark.io.rdf._
-import scala.collection.mutable.ListBuffer
+
 import org.apache.spark.ml.fpm.FPGrowth
 import org.apache.spark.sql.functions._
 import org.apache.spark.rdd.RDD
