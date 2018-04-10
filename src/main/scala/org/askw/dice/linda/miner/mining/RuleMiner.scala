@@ -7,6 +7,7 @@ import org.apache.jena.riot.Lang
 import net.sansa_stack.rdf.spark.io.rdf._
 
 import org.apache.spark.ml.fpm.FPGrowth
+import scala.collection.mutable
 import org.apache.spark.sql.functions._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.types._
@@ -15,9 +16,14 @@ import org.aksw.dice.linda.miner.datastructure.UnaryPredicate
 
 object RuleMiner {
   private val logger = LoggerFactory.getLogger(this.getClass.getName)
+  val input = "Data/rdf.nt"
+  var rules: DataFrame = _
+  var subjectOperatorMap: DataFrame = _
+  var operator2Id: DataFrame = _
+  val resourceIdSchema = List(StructField("resource", StringType, true))
+  val subjectOperatorSchema = List(StructField("subject", StringType, true), StructField("operators", ArrayType(StringType, true), true))
 
   def main(args: Array[String]) = {
-    val input = "Data/rdf.nt"
 
     val spark = SparkSession.builder
       .master("local[*]")
@@ -27,8 +33,6 @@ object RuleMiner {
     val context = spark.sparkContext
     val triplesDF = spark.read.rdf(Lang.NTRIPLES)(input)
     RDF2TransactionMap.readFromDF(triplesDF)
-    val resourceIdSchema = List(StructField("resource", StringType, true))
-    val subjectOperatorSchema = List(StructField("subject", StringType, true), StructField("operators", ArrayType(StringType, true), true))
     var subjetct2Operator = spark.createDataFrame(RDF2TransactionMap.subject2Operator.map(r => Row(r._1, r._2.map(a => a.toString()))), StructType(subjectOperatorSchema))
     var subjects = RDF2TransactionMap.subject2Operator.map(r => Row(r._1))
     var subject2Id = spark.createDataFrame(subjects, StructType(resourceIdSchema)).withColumn("id", row_number().over(Window.orderBy("resource")))
@@ -38,6 +42,7 @@ object RuleMiner {
     val model = fpgrowth.fit(transactionsRDD.toDF("items"))
     var frequentOperator2Id = model.freqItemsets.drop("freq").map(r => r.getAs[Seq[String]]("items")).flatMap(a => a).withColumn("id", row_number().over(Window.orderBy("value")))
 
+    // Writers
     model.associationRules.write.format("parquet").mode("overwrite").save("Data/rules")
 
     subject2Id.write.format("parquet").mode("overwrite").save("Data/Maps/SubjectId")
@@ -45,12 +50,18 @@ object RuleMiner {
 
     subjetct2Operator.write.format("parquet").mode("overwrite").save("Data/Maps/SubjectOperatorMap")
 
-    /*Actual operator list
-    var operators = RDF2TransactionMap.subject2Operator.map(r => r._2.toList.distinct).flatMap(y => y).distinct().map(a => Row(a.toString()))
-
-    var operator2Id = spark.createDataFrame(operators, StructType(someSchema)).withColumn("id", functions.row_number().over(Window.orderBy("resource")))
-    */
     spark.stop
+  }
+
+  def calculateEWS(rule: Row) {
+
+    val head = rule.getString(0)
+    println(head)
+    val body = rule.getAs[mutable.WrappedArray[String]](1).toIterable
+    var headFacts = subjectOperatorMap.select(subjectOperatorMap("subject")).filter(array_contains(subjectOperatorMap("operators"), head))
+    var bodyFacts = subjectOperatorMap.select(subjectOperatorMap("subject")).filter(subjectOperatorMap("operators").isin(body))
+
+    bodyFacts.show()
   }
 
 }
