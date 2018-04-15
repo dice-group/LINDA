@@ -47,11 +47,11 @@ object RuleMiner {
 
     //rules.foreach(r => calculateEWS(r))
     calculateEWSUsingLearning(rules.first())
+    calculateEWSUsingLearning(rules.first())
     spark.stop
   }
 
   def calculateEWSUsingSetOperations(rule: Row) {
-
     val head = rule.getSeq(1)
     val body = rule.getSeq(0)
     def containsBody = udf((list: mutable.WrappedArray[String]) => {
@@ -75,15 +75,17 @@ object RuleMiner {
   def calculateEWSUsingLearning(rule: Row) {
     val head = rule.getSeq(1)
     val body = rule.getSeq(0)
-    val freqPatterns = new FPGrowth().setItemsCol("operators").setMinSupport(0.02).setMinConfidence(0.5)
-    println(transactionsDF.schema)
+    val freqPatterns = new FPGrowth().setItemsCol("pattern").setMinSupport(0.02).setMinConfidence(0.5)
     def contains = udf((list: mutable.WrappedArray[String]) => {
       list.exists(a => (body.contains(a) && (!head.contains(a))))
     })
-    transactionsDF.select(col("items")).where(contains(col("items"))).show(false)
-
-    // Remove all the body operators from the transactions and re run fp growth
-    // negativeTransactions.show()
+    def filterBody = udf((list: mutable.WrappedArray[String]) => {
+      list.filter(!body.contains(_))
+    })
+    val negativeTransactions = transactionsDF.select(col("items")).where(contains(col("items"))).withColumn("pattern", filterBody(col("items"))).drop("items")
+    val patternMiner = freqPatterns.fit(negativeTransactions)
+    val EWS = patternMiner.freqItemsets
+    EWS.show(false)
   }
 
 }
