@@ -22,7 +22,7 @@ object RuleMiner {
   var operator2Id: DataFrame = _
   val resourceIdSchema = List(StructField("resource", StringType, true))
   val subjectOperatorSchema = List(StructField("subject", StringType, true), StructField("operators", ArrayType(StringType, true), true))
-
+  
   def main(args: Array[String]) = {
 
     val spark = SparkSession.builder
@@ -33,7 +33,7 @@ object RuleMiner {
     val context = spark.sparkContext
     val triplesDF = spark.read.rdf(Lang.NTRIPLES)(input)
     RDF2TransactionMap.readFromDF(triplesDF)
-    var subjetct2Operator = spark.createDataFrame(RDF2TransactionMap.subject2Operator.map(r => Row(r._1, r._2.map(a => a.toString()))), StructType(subjectOperatorSchema))
+    var subject2Operators = spark.createDataFrame(RDF2TransactionMap.subject2Operator.map(r => Row(r._1, r._2.map(a => a.toString()))), StructType(subjectOperatorSchema))
     var subjects = RDF2TransactionMap.subject2Operator.map(r => Row(r._1))
     var subject2Id = spark.createDataFrame(subjects, StructType(resourceIdSchema)).withColumn("id", row_number().over(Window.orderBy("resource")))
     var transactionsRDD = RDF2TransactionMap.subject2Operator.map(r => r._2.map(a => a.toString()))
@@ -43,25 +43,27 @@ object RuleMiner {
     var frequentOperator2Id = model.freqItemsets.drop("freq").map(r => r.getAs[Seq[String]]("items")).flatMap(a => a).withColumn("id", row_number().over(Window.orderBy("value")))
 
     // Writers
-    model.associationRules.write.format("parquet").mode("overwrite").save("Data/rules")
-
-    subject2Id.write.format("parquet").mode("overwrite").save("Data/Maps/SubjectId")
-    frequentOperator2Id.write.format("json").mode("overwrite").save("Data/Maps/OperatorId")
-
-    subjetct2Operator.write.format("parquet").mode("overwrite").save("Data/Maps/SubjectOperatorMap")
-
+    var rules = model.associationRules
+    this.subjectOperatorMap = subject2Operators.withColumn("operator", explode(col("operators"))).drop(col("operators"))
+    //rules.foreach(r => calculateEWS(r))
+    calculateEWS(rules.first())
     spark.stop
   }
 
   def calculateEWS(rule: Row) {
 
-    val head = rule.getString(0)
-    println(head)
-    val body = rule.getAs[mutable.WrappedArray[String]](1).toIterable
-    var headFacts = subjectOperatorMap.select(subjectOperatorMap("subject")).filter(array_contains(subjectOperatorMap("operators"), head))
-    var bodyFacts = subjectOperatorMap.select(subjectOperatorMap("subject")).filter(subjectOperatorMap("operators").isin(body))
+    val head = rule.getSeq(1)
+    val body = rule.getSeq(0)
+    val headfacts = subjectOperatorMap.select(col("subject")).where(col("operator").isin(head: _*)).distinct()
 
-    bodyFacts.show()
+    val bodyfacts = subjectOperatorMap.select(col("subject")).where(col("operator").isin(body: _*)).distinct()
+
+    val NS = headfacts.intersect(bodyfacts)
+    val ABS = bodyfacts.except(headfacts)
+
+    val difference = ABS.except(NS).rdd.map(r=>r.getString(0)).collect()
+    val EWS = subjectOperatorMap.select(col("operator")).where(col("subject").isin(difference:_*)).withColumn("S").distinct()
+    EWS.show(20, false)
   }
 
 }
