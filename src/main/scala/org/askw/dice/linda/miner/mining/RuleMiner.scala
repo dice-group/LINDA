@@ -1,6 +1,7 @@
 package org.askw.dice.linda.miner.mining
 
-import org.apache.spark.sql.{ SparkSession, Encoder, _ }
+import collection.mutable.{ HashMap }
+import org.apache.spark.sql.{ SparkSession, _ }
 import org.apache.spark.sql.expressions.Window;
 import org.slf4j.LoggerFactory
 import org.apache.jena.riot.Lang
@@ -13,6 +14,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.Encoders
 import org.aksw.dice.linda.miner.datastructure.UnaryPredicate
+import scala.collection.mutable.ListBuffer
 
 object RuleMiner {
   private val logger = LoggerFactory.getLogger(this.getClass.getName)
@@ -25,7 +27,6 @@ object RuleMiner {
   val subjectOperatorSchema = List(StructField("subject", StringType, true), StructField("operators", ArrayType(StringType, true), true))
 
   def main(args: Array[String]) = {
-
     val spark = SparkSession.builder
       .master("local[*]")
       .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
@@ -43,23 +44,25 @@ object RuleMiner {
     this.transactionsDF = transactionsRDD.toDF("items")
     val model = fpgrowth.fit(transactionsDF)
     var frequentOperator2Id = model.freqItemsets.drop("freq").map(r => r.getAs[Seq[String]]("items")).flatMap(a => a).withColumn("id", row_number().over(Window.orderBy("value")))
-    var rules = model.associationRules
+    var originalRules = model.associationRules
 
+    calculateEWSUsingSetOperations(originalRules.first())
     //rules.foreach(r => calculateEWS(r))
-    calculateEWSUsingLearning(rules.first())
-    calculateEWSUsingLearning(rules.first())
+
     spark.stop
   }
 
   def calculateEWSUsingSetOperations(rule: Row) {
     val head = rule.getSeq(1)
     val body = rule.getSeq(0)
+
     def containsBody = udf((list: mutable.WrappedArray[String]) => {
       list.exists(a => body.contains(a))
     })
     def containshead = udf((list: mutable.WrappedArray[String]) => {
       list.exists(a => head.contains(a))
     })
+
     val bodyfacts = subjectOperatorMap.select(col("subject")).where(containsBody(col("operators"))).distinct()
     val headfacts = subjectOperatorMap.select(col("subject")).where(containshead(col("operators"))).distinct()
 
@@ -67,9 +70,12 @@ object RuleMiner {
     val ABS = bodyfacts.except(headfacts)
 
     val difference = ABS.except(NS).rdd.map(r => r.getString(0)).collect()
-    val EWS = subjectOperatorMap.select(col("operator")).where(col("subject").isin(difference: _*)).distinct()
-    //TODO add a min support count.
-    EWS.show(20, false)
+    def addSupportCount = udf((ele: String) => {
+      subjectOperatorMap.select(col("subject")).where(array_contains(col("operators"), ele)).intersect(NS).collect()
+    })
+    val EWS = subjectOperatorMap.select(col("operators")).where(col("subject").isin(difference: _*)).distinct()
+    EWS.select(explode(col("operators")).as("EWS")).withColumn("count", addSupportCount(col("EWS"))).show()
+    //TODO add a min Confidence.
 
   }
   def calculateEWSUsingLearning(rule: Row) {

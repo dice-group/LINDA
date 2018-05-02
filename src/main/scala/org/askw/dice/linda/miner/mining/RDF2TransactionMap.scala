@@ -1,7 +1,7 @@
 
 package org.askw.dice.linda.miner.mining
 
-import collection.mutable.{ HashMap, MultiMap, Set }
+import collection.mutable.{ HashMap }
 import org.apache.spark.sql.{ DataFrame, _ }
 import org.aksw.dice.linda.miner.datastructure.UnaryPredicate
 import org.slf4j.LoggerFactory
