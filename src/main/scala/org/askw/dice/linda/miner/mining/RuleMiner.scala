@@ -76,7 +76,7 @@ object RuleMiner {
     val EWS = subjectOperatorMap.select(col("operators").as("EWS")).where(col("subject").isin(difference: _*)).distinct
  
     //TODO add a min Confidence.
-    //EWS.foreach(r => checkConfidence(r.getSeq(0), NS, bodyFacts))
+    EWS.foreach(r => checkConfidence(r.getSeq(0), NS, bodyFacts))
    // checkConfidence(EWS.first().getSeq(0), NS, bodyFacts)
 
   }
