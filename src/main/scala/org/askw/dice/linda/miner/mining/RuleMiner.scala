@@ -76,7 +76,7 @@ object RuleMiner {
   def calculateEWSUsingLearning(rule: Row) {
     val head = rule.getSeq(1)
     val body = rule.getSeq(0)
-    val freqPatterns = new FPGrowth().setItemsCol("pattern").setMinSupport(0.1)
+    val freqPatterns = new FPGrowth().setItemsCol("patterns").setMinSupport(0.1)
     def containsBodyAndNotHead = udf((list: mutable.WrappedArray[String]) => {
       list.exists(a => (body.contains(a) && (!head.contains(a))))
     })
@@ -84,20 +84,19 @@ object RuleMiner {
       list.filter(!body.contains(_))
     })
 
-    val negativeTransactions = transactionsDF.select(col("items")).where(containsBodyAndNotHead(col("items"))).withColumn("pattern", filterBody(col("items"))).drop("items")
+    val negativeTransactions = transactionsDF.select(col("items")).where(containsBodyAndNotHead(col("items"))).withColumn("patterns", filterBody(col("items"))).drop("items")
     val patternMiner = freqPatterns.fit(negativeTransactions)
     val EWS = patternMiner.freqItemsets.withColumn("EWS", explode(col("items"))).drop(col("items")).drop(col("freq"))
 
-    def containsBodyHead = udf((list: mutable.WrappedArray[String]) => {
-      list.exists(a => (body.contains(a) && (head.contains(a))))
+    def containsBodyandHead = udf((list: mutable.WrappedArray[String]) => {
+      list.exists(a => body.contains(a) || head.contains(a))
     })
     def containsEWS = udf((list: mutable.WrappedArray[String], ele: String) => {
       list.exists(a => a.contains(ele))
     })
 
-    val filteredTransaction = transactionsDF.select(col("items")).where(containsBodyHead(col("items")))
-  
-    transactionsDF.join(EWS, containsEWS(col("items"), col("EWS"))).show(false)
+    val filteredTransaction = transactionsDF.select(col("items")).where(containsBodyandHead(col("items"))).join(EWS, containsEWS(col("items"), col("EWS")))
+
   }
 
 }
