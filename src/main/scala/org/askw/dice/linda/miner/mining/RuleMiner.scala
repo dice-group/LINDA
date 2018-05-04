@@ -88,15 +88,18 @@ object RuleMiner {
     val patternMiner = freqPatterns.fit(negativeTransactions)
     val EWS = patternMiner.freqItemsets.withColumn("EWS", explode(col("items"))).drop(col("items")).drop(col("freq"))
 
-    def containsBodyandHead = udf((list: mutable.WrappedArray[String]) => {
-      list.exists(a => body.contains(a) || head.contains(a))
+    def containsBody = udf((list: mutable.WrappedArray[String]) => {
+      list.exists(a => body.contains(a))
+    })
+    def containshead = udf((list: mutable.WrappedArray[String]) => {
+      list.exists(a => head.contains(a))
     })
     def containsEWS = udf((list: mutable.WrappedArray[String], ele: String) => {
       list.exists(a => a.contains(ele))
     })
 
-    val filteredTransaction = transactionsDF.select(col("items")).where(containsBodyandHead(col("items"))).join(EWS, containsEWS(col("items"), col("EWS")))
-
+    val filteredTransaction = transactionsDF.select(col("items")).where(containsBody(col("items")) && containshead(col("items"))).join(EWS, containsEWS(col("items"), col("EWS")))
+    filteredTransaction.show(false)
   }
 
 }
