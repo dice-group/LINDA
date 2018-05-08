@@ -1,21 +1,19 @@
-package org.askw.dice.linda.miner.mining
+package org.askw.dice.linda.miner.PatternRuleMining
 
 import org.apache.spark.sql.{ SparkSession, Encoder, _ }
 import org.apache.spark.sql.expressions.Window;
 import org.slf4j.LoggerFactory
 import org.apache.jena.riot.Lang
 import net.sansa_stack.rdf.spark.io.rdf._
-
 import org.apache.spark.ml.fpm.FPGrowth
 import scala.collection.mutable
 import org.apache.spark.sql.functions._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.types._
-import org.apache.spark.sql.Encoders
-import org.aksw.dice.linda.miner.datastructure.UnaryPredicate
-import org.datanucleus.query.expression.JoinExpression
+import org.aksw.dice.linda.miner.datastructure.RDF2TransactionMap
 
 object RuleMiner {
+
   private val logger = LoggerFactory.getLogger(this.getClass.getName)
   val input = "Data/rdf.nt"
   var rules: DataFrame = _

@@ -1,13 +1,11 @@
 
-package org.askw.dice.linda.miner.mining
+package org.aksw.dice.linda.miner.datastructure
 
 import collection.mutable.{ HashMap }
 import org.apache.spark.sql.{ DataFrame, _ }
-import org.aksw.dice.linda.miner.datastructure.UnaryPredicate
 import org.slf4j.LoggerFactory
 import scala.collection.mutable.ListBuffer
 import org.apache.spark.rdd.RDD
-import scala.collection.mutable
 
 object RDF2TransactionMap {
   private val logger = LoggerFactory.getLogger(this.getClass.getName)
