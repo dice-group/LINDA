@@ -27,9 +27,9 @@ object RuleMinerDT {
     val triplesDF = spark.read.rdf(Lang.NTRIPLES)(input)
 
     RDF2TransactionMap.readFromDF(triplesDF)
-    this.subjectOperatorMap = spark.createDataFrame(RDF2TransactionMap.subject2Operator.map(r => Row(r._1, r._2.map(a => a.toString()))), StructType(subjectOperatorSchema))
+    this.subjectOperatorMap = spark.createDataFrame(RDF2TransactionMap.subject2Operator.map(r => Row(r._1, r._2.map(a => a.toString()))), StructType(subjectOperatorSchema)).withColumn("factConf", lit(1.0))
     this.subject2Id = spark.createDataFrame(RDF2TransactionMap.subject2Operator.map(r => Row(r._1)), StructType(resourceIdSchema)).withColumn("id", monotonically_increasing_id())
-    this.operator2Id = spark.createDataFrame(RDF2TransactionMap.subject2Operator.map(r => if (r._2 != null) Row(r._2.map(a => a.toString()))), StructType(resourceIdSchema)).withColumn("id", monotonically_increasing_id())
+    this.operator2Id = spark.createDataFrame(RDF2TransactionMap.subject2Operator.map(r => Row(r._2.map(a => a.toString()))), StructType(resourceIdSchema)).withColumn("id", monotonically_increasing_id())
     this.subjectOperatorMap.show(false)
     this.subject2Id.show(false)
     this.operator2Id.show(false)
