@@ -14,7 +14,7 @@ object RuleMinerDT {
   var operator2Id: DataFrame = _
   val input = "Data/rdf.nt"
   val subjectOperatorSchema = List(StructField("subject", StringType, true), StructField("operators", ArrayType(StringType, true), true))
-  val resourceIdSchema = List(StructField("resource", StringType, true))
+  val resourceIdSchema = List(StructField("resources", ArrayType(StringType), true))
 
   def main(args: Array[String]) = {
 
@@ -29,9 +29,7 @@ object RuleMinerDT {
     RDF2TransactionMap.readFromDF(triplesDF)
     this.subjectOperatorMap = spark.createDataFrame(RDF2TransactionMap.subject2Operator.map(r => Row(r._1, r._2.map(a => a.toString()))), StructType(subjectOperatorSchema)).withColumn("factConf", lit(1.0))
     this.subject2Id = spark.createDataFrame(RDF2TransactionMap.subject2Operator.map(r => Row(r._1)), StructType(resourceIdSchema)).withColumn("id", monotonically_increasing_id())
-    this.operator2Id = spark.createDataFrame(RDF2TransactionMap.subject2Operator.map(r => Row(r._2.map(a => a.toString()))), StructType(resourceIdSchema)).withColumn("id", monotonically_increasing_id())
-    this.subjectOperatorMap.show(false)
-    this.subject2Id.show(false)
+    this.operator2Id = spark.createDataFrame(RDF2TransactionMap.subject2Operator.map(r => Row(r._2.map(a => a.toString()))), StructType(resourceIdSchema)).withColumn("operators", explode(col("resources"))).withColumn("id", monotonically_increasing_id()).drop(col("resources"))
     this.operator2Id.show(false)
     spark.stop
   }
