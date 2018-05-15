@@ -9,6 +9,8 @@ import scala.collection.mutable
 
 import org.aksw.dice.linda.miner.datastructure.RDF2TransactionMap
 import scala.collection.mutable.ListBuffer
+import org.apache.spark.ml.feature.LabeledPoint
+import org.apache.spark.mllib.linalg.Vectors
 
 object RuleMinerDT {
   var subjectOperatorMap: DataFrame = _
@@ -29,15 +31,15 @@ object RuleMinerDT {
     val context = spark.sparkContext
     val triplesDF = spark.read.rdf(Lang.NTRIPLES)(input)
     RDF2TransactionMap.readFromDF(triplesDF)
-
+    val convertToVector = udf((array: Seq[Long]) => {
+      Vectors.dense(array.toArray.map(_.toDouble))
+    })
     this.subjectOperatorMap = spark.createDataFrame(RDF2TransactionMap.subject2Operator.map(r => Row(r._1, r._2.map(a => a.toString()))), StructType(subjectOperatorSchema)).withColumn("factConf", lit(1.0))
-    this.subject2Id = spark.createDataFrame(RDF2TransactionMap.subject2Operator.map(r => Row(r._1)), StructType(subjectIdSchema)).withColumn("id", monotonically_increasing_id())
-    this.operator2Id = spark.createDataFrame(RDF2TransactionMap.subject2Operator.map(r => Row(r._2.map(a => a.toString()))), StructType(operatorIdSchema)).withColumn("operator", explode(col("resources"))).withColumn("id", monotonically_increasing_id()).drop(col("resources"))
+    this.subject2Id = spark.createDataFrame(RDF2TransactionMap.subject2Operator.map(r => Row(r._1)), StructType(subjectIdSchema)).withColumn("subjectIds", monotonically_increasing_id())
+    this.operator2Id = spark.createDataFrame(RDF2TransactionMap.subject2Operator.map(r => Row(r._2.map(a => a.toString()))), StructType(operatorIdSchema)).withColumn("operator", explode(col("resources"))).withColumn("operatorIds", monotonically_increasing_id()).drop(col("resources"))
     val libsvmDataset = subjectOperatorMap.withColumn("operator", explode(col("operators")))
-      .join(operator2Id, "operator").drop("factConf").groupBy(col("subject"), col("operators")).agg(collect_list(col("id"))).drop("operators").join(subject2Id, "subject")
-
-    //.groupBy(col("subject"), col("list_of_ids")).agg(collect_list($"desc"))
-
+      .join(operator2Id, "operator").groupBy(col("subject"), col("operators")).agg(collect_list(col("operatorIds")).as("x")).join(subject2Id, "subject").drop("operators").drop("factConf").drop("subject").withColumn("operatorsIds", convertToVector(col("x"))).drop("x")
+    libsvmDataset.show(false)
     spark.stop
   }
 
