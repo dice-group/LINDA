@@ -41,7 +41,7 @@ object RuleMinerDT {
       .join(operator2Id, "operator").groupBy(col("subject"), col("operators")).agg(collect_list(col("operatorIds")).as("x")).join(subject2Id, "subject").drop("operators").drop("factConf").drop("subject").withColumn("operatorsIds", convertToVector(col("x"))).drop("x")
     val pos = libsvmDataset.select("operatorsIds").where(array_contains(col("operatorsIds"), operator2Id.first().get(1)))
     val neg = libsvmDataset.select("operatorsIds").where(!array_contains(col("operatorsIds"), operator2Id.first().get(1)))
-    LIBSVMDataConverter.libsvmwriter(pos, neg)
+    LIBSVMConverter.libsvmwriter(pos, neg)
     spark.stop
   }
 
