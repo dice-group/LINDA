@@ -43,7 +43,6 @@ object RuleMiner {
     val model = fpgrowth.fit(transactionsDF)
     var frequentOperator2Id = model.freqItemsets.drop("freq").map(r => r.getAs[Seq[String]]("items")).flatMap(a => a).withColumn("id", row_number().over(Window.orderBy("value")))
     var originalRules = model.associationRules
-
     val a = originalRules.rdd.map(r => println(calculateEWSUsingLearning(r).count())).collect()
 
     spark.stop

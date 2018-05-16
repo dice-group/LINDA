@@ -35,17 +35,23 @@ object RuleMinerDT {
     val convertToVector = udf((array: Seq[Long]) => {
       array.toArray.map(_.toDouble)
     })
+
     this.subjectOperatorMap = spark.createDataFrame(RDF2TransactionMap.subject2Operator.map(r => Row(r._1, r._2.map(a => a.toString()))), StructType(subjectOperatorSchema)).withColumn("factConf", lit(1.0))
     this.subject2Id = spark.createDataFrame(RDF2TransactionMap.subject2Operator.map(r => Row(r._1)), StructType(subjectIdSchema)).withColumn("subjectIds", monotonically_increasing_id())
     this.operator2Id = spark.createDataFrame(RDF2TransactionMap.subject2Operator.map(r => Row(r._2.map(a => a.toString()))), StructType(operatorIdSchema)).withColumn("operator", explode(col("resources"))).withColumn("operatorIds", monotonically_increasing_id()).drop(col("resources"))
     val libsvmDataset = subjectOperatorMap.withColumn("operator", explode(col("operators")))
       .join(operator2Id, "operator").groupBy(col("subject"), col("operators")).agg(collect_list(col("operatorIds")).as("x")).drop("operators").drop("factConf").drop("subject").withColumn("operatorsIds", convertToVector(col("x"))).drop("x")
-    val pos = libsvmDataset.select("operatorsIds").where(array_contains(col("operatorsIds"), operator2Id.first().get(1)))
-    val neg = libsvmDataset.except(pos)
-    libsvmwriter(pos, neg)
+
+    operator2Id.rdd.map { r =>
+      {
+        val pos = libsvmDataset.select("operatorsIds").where(array_contains(col("operatorsIds"), r.get(1)))
+        libsvmwriter(pos, libsvmDataset.except(pos), r.get(1).toString())
+      }
+    }
+
     spark.stop
   }
-  def libsvmwriter(acceptedEntities: DataFrame, nonAcceptedEntities: DataFrame) {
+  def libsvmwriter(acceptedEntities: DataFrame, nonAcceptedEntities: DataFrame, name: String): RDD[String] = {
     acceptedEntities.rdd.map(r => {
       val line: StringBuilder = new StringBuilder()
       line.append("1").append("\t")
@@ -60,7 +66,7 @@ object RuleMinerDT {
         line.append(a + COLON + "1").append(SPACE)
       })
       line.toString()
-    })).repartition(1).saveAsTextFile("Data/libsvmfile")
+    }))
 
   }
 }
