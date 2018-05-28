@@ -13,14 +13,12 @@ import org.apache.spark.mllib.linalg.Vectors
 import org.apache.spark.mllib.linalg.Vectors
 import org.apache.spark.mllib.regression.LabeledPoint
 
-object RuleMinerDT {
+object DatasetWriter {
   var subjectOperatorMap: DataFrame = _
   var libsvmDataset: DataFrame = _
   var subject2Id: DataFrame = _
   var operator2Id: DataFrame = _
   val input = "Data/rdf.nt"
-  val SPACE: String = " ";
-  val COLON: String = ":";
   lazy val subjectOperatorSchema = List(StructField("subject", StringType, true), StructField("operators", ArrayType(StringType, true), true))
   lazy val operatorIdSchema = List(StructField("resources", ArrayType(StringType), true))
   lazy val subjectIdSchema = List(StructField("subject", StringType, true))
@@ -30,7 +28,7 @@ object RuleMinerDT {
     val spark = SparkSession.builder
       .master("local[*]")
       .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
-      .appName("LINDA (Miner)")
+      .appName("LINDA (Data Set Creater)")
       .getOrCreate()
     val context = spark.sparkContext
     val triplesDF = spark.read.rdf(Lang.NTRIPLES)(input)
@@ -54,12 +52,10 @@ object RuleMinerDT {
       .agg(collect_list(col("operatorIds")).as("x")).drop("operators")
       .drop("factConf").drop("subject")
       .withColumn("operatorsIds", convertToVector(col("x"))).drop("x")
-    val a = operator2Id.limit(10).rdd.foreach(r =>
-      libsvmwriter(
-        r.getLong(1),
-        libsvmDataset.select("operatorsIds").where(array_contains(col("operatorsIds"), r.getLong(1))),
-        libsvmDataset.select("operatorsIds").where(!array_contains(col("operatorsIds"), r.getLong(1)))))
-
+    operator2Id.limit(10).rdd.foreach(r => libsvmwriter(
+      r.getLong(1),
+      libsvmDataset.select("operatorsIds").where(array_contains(col("operatorsIds"), r.getLong(1))),
+      libsvmDataset.select("operatorsIds").where(!array_contains(col("operatorsIds"), r.getLong(1)))))
     spark.stop
 
   }
@@ -73,6 +69,6 @@ object RuleMinerDT {
         LabeledPoint(0.0, Vectors.sparse(
           this.numberofOperators,
           y.getSeq[Int](0).toArray, Array.fill[Double](y.getSeq[Int](0).size) { 1.0 }))))
-    MLUtils.saveAsLibSVMFile(a, "/Users/Kunal/workspaceThesis/LINDA/Data/LIBSVM" + id)
+    MLUtils.saveAsLibSVMFile(a, "/Users/Kunal/workspaceThesis/LINDA/Data/LIBSVMDataset" + id)
   }
 }

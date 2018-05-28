@@ -16,6 +16,7 @@ object RuleMiner {
 
   private val logger = LoggerFactory.getLogger(this.getClass.getName)
   val input = "Data/rdf.nt"
+  val Name = "rdf"
   var rules: DataFrame = _
   var subjectOperatorMap: DataFrame = _
   var transactionsDF: DataFrame = _
@@ -24,11 +25,10 @@ object RuleMiner {
   val subjectOperatorSchema = List(StructField("subject", StringType, true), StructField("operators", ArrayType(StringType, true), true))
   val fpgrowth = new FPGrowth()
   def main(args: Array[String]) = {
-
     val spark = SparkSession.builder
       .master("local[*]")
       .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
-      .appName("LINDA (Miner)")
+      .appName("LINDA  (Original Miner)")
       .getOrCreate()
     val context = spark.sparkContext
     val triplesDF = spark.read.rdf(Lang.NTRIPLES)(input)
@@ -44,9 +44,9 @@ object RuleMiner {
     this.transactionsDF = transactionsRDD.toDF("items")
     fpgrowth.setItemsCol("items").setMinSupport(0.02).setMinConfidence(0.5)
     val model = fpgrowth.fit(transactionsDF)
-    var originalRules = model.associationRules
-    // originalRules.limit(3).withColumn("EWS", calculateEWSUsingLearning(struct(col("antecedent"), col("consequent")))).drop("confidence").show(false)
-    originalRules.limit(3).withColumn("EWS", calculateEWSUsingSetOperations(struct(col("antecedent"), col("consequent")))).drop("confidence").show(false)
+    model.associationRules.limit(2).withColumn("EWS", calculateEWSUsingSetOperations(struct(col("antecedent"), col("consequent"))))
+      .withColumn("negation", explode(col("EWS"))).drop("EWS")
+      .write.format("parquet").save("Data/OriginalAlgorithm/NewRules/" + Name + ".parquet")
     spark.stop
   }
   def calculateEWSUsingLearning = udf((rule: Row) => {
