@@ -24,6 +24,7 @@ object RuleMinerDT {
   lazy val subjectOperatorSchema = List(StructField("subject", StringType, true), StructField("operators", ArrayType(StringType, true), true))
   lazy val operatorIdSchema = List(StructField("resources", ArrayType(StringType), true))
   lazy val subjectIdSchema = List(StructField("subject", StringType, true))
+  var numberofOperators: Int = 0
 
   def main(args: Array[String]) = {
     val spark = SparkSession.builder
@@ -32,13 +33,11 @@ object RuleMinerDT {
       .appName("LINDA (Miner)")
       .getOrCreate()
     val context = spark.sparkContext
-
     val triplesDF = spark.read.rdf(Lang.NTRIPLES)(input)
     RDF2TransactionMap.readFromDF(triplesDF)
     val convertToVector = udf((array: Seq[Long]) => {
-      array.toArray.map(_.toDouble)
+      array.toArray.map(_.toInt)
     })
-
     this.subjectOperatorMap = spark.createDataFrame(RDF2TransactionMap.subject2Operator
       .map(r => Row(r._1, r._2.map(a => a.toString()))), StructType(subjectOperatorSchema))
       .withColumn("factConf", lit(1.0))
@@ -49,37 +48,33 @@ object RuleMinerDT {
       .withColumn("operator", explode(col("resources")))
       .withColumn("operatorIds", monotonically_increasing_id())
       .drop(col("resources"))
+    this.numberofOperators = this.operator2Id.count().toInt
     this.libsvmDataset = subjectOperatorMap.withColumn("operator", explode(col("operators")))
       .join(operator2Id, "operator").groupBy(col("subject"), col("operators"))
       .agg(collect_list(col("operatorIds")).as("x")).drop("operators")
       .drop("factConf").drop("subject")
       .withColumn("operatorsIds", convertToVector(col("x"))).drop("x")
-    libsvmDataset.show(false)
-
-    //val a = operator2Id.limit(10).withColumn("libsvmresult", libsvmwriter(col("operatorIds")))
-    //  a.select(col("libsvmresult")).write.format("libsvm").save("da")
+    operator2Id.printSchema()
+    val a = operator2Id.limit(10).rdd.map(r => libsvmwriter(r.getLong(1)))
+    a.collect().take(10).foreach(println)
+    //.select(col("libsvmresult")).show(false)
+    //.write.format("libsvm").save("da")
 
     spark.stop
 
   }
-  /*def libsvmwriter = udf((operator: Long) => {
+  def libsvmwriter(operator: Long): RDD[LabeledPoint] = {
     val acceptedEntities = libsvmDataset.select("operatorsIds").where(array_contains(col("operatorsIds"), operator))
-    val nonAcceptedEntities = libsvmDataset.except(acceptedEntities)
-    acceptedEntities.rdd.map(r => {
-      new LabeledPoint(1.0, r.getSeq[Double](0)
-      line.append("1").append("\t")
-      .foreach(a => {
-        line.append(a + COLON + "1").append(SPACE)
-      })
-      line.toString()
-    }).union(nonAcceptedEntities.rdd.map(r => {
-      val line: StringBuilder = new StringBuilder()
-      line.append("-1").append("\t")
-      r.getSeq[Double](0).foreach(a => {
-        line.append(a + COLON + "1").append(SPACE)
-      })
-      line.toString()
-    })).map(a => a.toString()).collect().toList
+    val nonAcceptedEntities = libsvmDataset.select("operatorsIds").except(acceptedEntities)
 
-  })*/
+    acceptedEntities.rdd.map(x =>
+      //      val nCols = r.getSeq[Int](0).max +
+      LabeledPoint(1.0, Vectors.sparse(
+        this.numberofOperators,
+        x.getSeq[Int](0).toArray, Array.fill[Double](x.getSeq[Int](0).size) { 1.0 })))
+      .union(nonAcceptedEntities.rdd.map(y =>
+        LabeledPoint(0.0, Vectors.sparse(
+          this.numberofOperators,
+          y.getSeq[Int](0).toArray, Array.fill[Double](y.getSeq[Int](0).size) { 1.0 }))))
+  }
 }
