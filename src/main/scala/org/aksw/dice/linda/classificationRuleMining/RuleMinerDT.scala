@@ -73,6 +73,6 @@ object RuleMinerDT {
         LabeledPoint(0.0, Vectors.sparse(
           this.numberofOperators,
           y.getSeq[Int](0).toArray, Array.fill[Double](y.getSeq[Int](0).size) { 1.0 }))))
-    MLUtils.saveAsLibSVMFile(a, "/Users/Kunal/workspaceThesis/LINDA/Dat/" + id)
+    MLUtils.saveAsLibSVMFile(a, "/Users/Kunal/workspaceThesis/LINDA/Data/LIBSVM" + id)
   }
 }
