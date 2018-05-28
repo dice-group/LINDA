@@ -54,20 +54,17 @@ object RuleMinerDT {
       .agg(collect_list(col("operatorIds")).as("x")).drop("operators")
       .drop("factConf").drop("subject")
       .withColumn("operatorsIds", convertToVector(col("x"))).drop("x")
-    operator2Id.printSchema()
-    val a = operator2Id.limit(10).rdd.map(r => libsvmwriter(r.getLong(1)))
-    a.collect().take(10).foreach(println)
-    //.select(col("libsvmresult")).show(false)
-    //.write.format("libsvm").save("da")
+    val a = operator2Id.limit(10).rdd.foreach(r =>
+      libsvmwriter(
+        r.getLong(1),
+        libsvmDataset.select("operatorsIds").where(array_contains(col("operatorsIds"), r.getLong(1))),
+        libsvmDataset.select("operatorsIds").where(!array_contains(col("operatorsIds"), r.getLong(1)))))
 
     spark.stop
 
   }
-  def libsvmwriter(operator: Long): RDD[LabeledPoint] = {
-    val acceptedEntities = libsvmDataset.select("operatorsIds").where(array_contains(col("operatorsIds"), operator))
-    val nonAcceptedEntities = libsvmDataset.select("operatorsIds").except(acceptedEntities)
-
-    acceptedEntities.rdd.map(x =>
+  def libsvmwriter(id: Long, acceptedEntities: DataFrame, nonAcceptedEntities: DataFrame) {
+    val a = acceptedEntities.rdd.map(x =>
       //      val nCols = r.getSeq[Int](0).max +
       LabeledPoint(1.0, Vectors.sparse(
         this.numberofOperators,
@@ -76,5 +73,6 @@ object RuleMinerDT {
         LabeledPoint(0.0, Vectors.sparse(
           this.numberofOperators,
           y.getSeq[Int](0).toArray, Array.fill[Double](y.getSeq[Int](0).size) { 1.0 }))))
+    MLUtils.saveAsLibSVMFile(a, "/Users/Kunal/workspaceThesis/LINDA/Dat/" + id)
   }
 }
