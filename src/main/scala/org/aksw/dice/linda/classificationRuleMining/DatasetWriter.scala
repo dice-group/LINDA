@@ -39,7 +39,8 @@ object DatasetWriter {
     this.subjectOperatorMap = spark.createDataFrame(RDF2TransactionMap.subject2Operator
       .map(r => Row(r._1, r._2.map(a => a.toString()))), StructType(subjectOperatorSchema))
       .withColumn("factConf", lit(1.0))
-    this.subject2Id = spark.createDataFrame(RDF2TransactionMap.subject2Operator.map(r => Row(r._1)), StructType(subjectIdSchema))
+    this.subject2Id = spark.createDataFrame(RDF2TransactionMap.subject2Operator
+      .map(r => Row(r._1)), StructType(subjectIdSchema))
       .withColumn("subjectIds", monotonically_increasing_id())
     this.operator2Id = spark.createDataFrame(RDF2TransactionMap.subject2Operator
       .map(r => Row(r._2.map(a => a.toString()))), StructType(operatorIdSchema))
@@ -52,7 +53,7 @@ object DatasetWriter {
       .agg(collect_list(col("operatorIds")).as("x")).drop("operators")
       .drop("factConf").drop("subject")
       .withColumn("operatorsIds", convertToVector(col("x"))).drop("x")
-    operator2Id.limit(10).rdd.foreach(r => libsvmwriter(
+    operator2Id.rdd.foreach(r => libsvmwriter(
       r.getLong(1),
       libsvmDataset.select("operatorsIds").where(array_contains(col("operatorsIds"), r.getLong(1))),
       libsvmDataset.select("operatorsIds").where(!array_contains(col("operatorsIds"), r.getLong(1)))))
@@ -69,6 +70,6 @@ object DatasetWriter {
         LabeledPoint(0.0, Vectors.sparse(
           this.numberofOperators,
           y.getSeq[Int](0).toArray, Array.fill[Double](y.getSeq[Int](0).size) { 1.0 }))))
-    MLUtils.saveAsLibSVMFile(a, "/Users/Kunal/workspaceThesis/LINDA/Data/LIBSVMDataset" + id)
+    MLUtils.saveAsLibSVMFile(a, "/Users/Kunal/workspaceThesis/LINDA/Data/LIBSVMDataset/" + id)
   }
 }
