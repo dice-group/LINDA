@@ -44,9 +44,9 @@ object RuleMiner {
     this.transactionsDF = transactionsRDD.toDF("items")
     fpgrowth.setItemsCol("items").setMinSupport(0.02).setMinConfidence(0.5)
     val model = fpgrowth.fit(transactionsDF)
-    model.associationRules.limit(2).withColumn("EWS", calculateEWSUsingSetOperations(struct(col("antecedent"), col("consequent"))))
+    model.associationRules.withColumn("EWS", calculateEWSUsingSetOperations(struct(col("antecedent"), col("consequent"))))
       .withColumn("negation", explode(col("EWS"))).drop("EWS")
-      .write.format("parquet").save("Data/OriginalAlgorithm/NewRules/" + Name + ".parquet")
+      .write.format("json").save("Data/OriginalAlgorithm/NewRules/" + Name)
     spark.stop
   }
   def calculateEWSUsingLearning = udf((rule: Row) => {
