@@ -66,29 +66,12 @@ object DatasetWriter {
     val struct = StructType(List(
       StructField("label", DoubleType, false),
       StructField("features", VectorType, false)))
+
     val a = spark.sqlContext.createDataFrame(acceptedEntities.rdd.map(x =>
       { Row(1.0, Vectors.sparse(this.numberofOperators, x.getSeq[Int](0).distinct.toArray, Array.fill[Double](x.getSeq[Int](0).distinct.size) { 1.0 })) })
-      .union(nonAcceptedEntities.rdd.map(y => Row(0.0, Vectors.sparse(
+      .union(nonAcceptedEntities.rdd.map(y => Row(-1.0, Vectors.sparse(
         this.numberofOperators, y.getSeq[Int](0).distinct.toArray, Array.fill[Double](y.getSeq[Int](0).distinct.size) { 1.0 })))), struct)
-    a.show(false)
-
+      .coalesce(1).write.format("libsvm").mode(SaveMode.Overwrite).save("/Users/Kunal/workspaceThesis/LINDA/Data/LIBSVMData/" + id)
   }
 
-  /* def libsvmwriterTxt(id: Long, acceptedEntities: DataFrame, nonAcceptedEntities: DataFrame) {
-    acceptedEntities.rdd.map(r => {
-      val line: StringBuilder = new StringBuilder()
-      line.append(1.toDouble).append("")
-      r.getSeq[Int](0).foreach(a => {
-        line.append(a + COLON + 1.toDouble).append(SPACE)
-      })
-      line.append("\n").toString()
-    }).union(nonAcceptedEntities.rdd.map(r => {
-      val line: StringBuilder = new StringBuilder()
-      line.append(0.toDouble).append(SPACE)
-      r.getSeq[Int](0).foreach(a => {
-        line.append(a + COLON + 1.toDouble).append(SPACE)
-      })
-      line.append("\n").toString()
-    })).coalesce(1).saveAsTextFile("/Users/Kunal/workspaceThesis/LINDA/Data/LIBSVMData/" + id)
-  }*/
 }
