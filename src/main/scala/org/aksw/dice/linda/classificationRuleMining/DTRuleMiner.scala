@@ -16,7 +16,7 @@ object DTRuleMiner {
       .getOrCreate()
 
     // Load the data stored in LIBSVM format as a DataFrame.
-    val data = spark.read.format("libsvm").load("/Users/Kunal/workspaceThesis/LINDA/Data/LIBSVMData/0/part-00")
+    val data = spark.read.format("libsvm").load("/Users/Kunal/workspaceThesis/LINDA/Data/LIBSVMData/0/*.libsvm")
     data.show()
     val labelIndexer = new StringIndexer()
       .setInputCol("label")
@@ -25,9 +25,9 @@ object DTRuleMiner {
     // Automatically identify categorical features, and index them.
     val featureIndexer = new VectorIndexer()
       .setInputCol("features")
-      .setOutputCol("indexedFeatures")
-      .setMaxCategories(2) // features with > 4 distinct values are treated as continuous.
+      .setOutputCol("indexedFeatures") 
       .fit(data)
+     
 
     // Split the data into training and test sets (30% held out for testing).
     val Array(trainingData, testData) = data.randomSplit(Array(0.7, 0.3))

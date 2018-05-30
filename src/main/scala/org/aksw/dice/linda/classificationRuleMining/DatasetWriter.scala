@@ -10,6 +10,7 @@ import scala.collection.mutable
 import org.aksw.dice.linda.miner.datastructure.RDF2TransactionMap
 import scala.collection.mutable.ListBuffer
 import org.apache.spark.ml.linalg.Vectors
+import org.apache.hadoop.fs._
 
 object DatasetWriter {
   var subjectOperatorMap: DataFrame = _
@@ -62,16 +63,15 @@ object DatasetWriter {
 
   }
   def libsvmwriter(id: Long, acceptedEntities: DataFrame, nonAcceptedEntities: DataFrame) {
-
     val struct = StructType(List(
       StructField("label", DoubleType, false),
       StructField("features", VectorType, false)))
-
-    val a = spark.sqlContext.createDataFrame(acceptedEntities.rdd.map(x =>
-      { Row(1.0, Vectors.sparse(this.numberofOperators, x.getSeq[Int](0).distinct.toArray, Array.fill[Double](x.getSeq[Int](0).distinct.size) { 1.0 })) })
+    spark.sqlContext.createDataFrame(acceptedEntities.rdd.map(x =>
+      { Row(1.0, Vectors.sparse(this.numberofOperators, x.getSeq[Int](0).distinct.toArray, Array.fill[Double](x.getSeq[Int](0).distinct.size) { 1 })) })
       .union(nonAcceptedEntities.rdd.map(y => Row(-1.0, Vectors.sparse(
-        this.numberofOperators, y.getSeq[Int](0).distinct.toArray, Array.fill[Double](y.getSeq[Int](0).distinct.size) { 1.0 })))), struct)
+        this.numberofOperators, y.getSeq[Int](0).distinct.toArray, Array.fill[Double](y.getSeq[Int](0).distinct.size) { 1 })))), struct)
       .coalesce(1).write.format("libsvm").mode(SaveMode.Overwrite).save("/Users/Kunal/workspaceThesis/LINDA/Data/LIBSVMData/" + id)
+
   }
 
 }
