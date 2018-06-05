@@ -67,11 +67,16 @@ object DatasetWriter {
       StructField("label", DoubleType, false),
       StructField("features", VectorType, false)))
     spark.sqlContext.createDataFrame(acceptedEntities.rdd.map(x =>
-      { Row(1.0, Vectors.sparse(this.numberofOperators, x.getSeq[Int](0).distinct.toArray, Array.fill[Double](x.getSeq[Int](0).distinct.size) { 1 })) })
+
+      {
+        val j = x.getSeq[Int](0).filter(_ != id).distinct
+        Row(1.0, Vectors.sparse(this.numberofOperators, j.toArray, Array.fill[Double](j.size) { 1 }))
+      })
       .union(nonAcceptedEntities.rdd.map(y => Row(-1.0, Vectors.sparse(
         this.numberofOperators, y.getSeq[Int](0).distinct.toArray, Array.fill[Double](y.getSeq[Int](0).distinct.size) { 1 })))), struct)
-      .coalesce(1).write.format("libsvm").mode(SaveMode.Overwrite).save("/Users/Kunal/workspaceThesis/LINDA/Data/LIBSVMData/" + id)
+      .write.format("libsvm").mode(SaveMode.Overwrite).save("/Users/Kunal/workspaceThesis/LINDA/Data/LIBSVMData/" + id)
 
   }
+   
 
 }

@@ -15,21 +15,16 @@ object DTRuleMiner {
       .appName("LINDA (DT Classifier) ")
       .getOrCreate()
 
-    // Load the data stored in LIBSVM format as a DataFrame.
-    val data = spark.read.format("libsvm").load("/Users/Kunal/workspaceThesis/LINDA/Data/LIBSVMData/0/*.libsvm")
+    val data = spark.read.format("libsvm").load("/Users/Kunal/workspaceThesis/LINDA/Data/LIBSVMData/0/00")
     data.show()
     val labelIndexer = new StringIndexer()
       .setInputCol("label")
       .setOutputCol("indexedLabel")
       .fit(data)
-    // Automatically identify categorical features, and index them.
     val featureIndexer = new VectorIndexer()
       .setInputCol("features")
-      .setOutputCol("indexedFeatures") 
+      .setOutputCol("indexedFeatures")
       .fit(data)
-     
-
-    // Split the data into training and test sets (30% held out for testing).
     val Array(trainingData, testData) = data.randomSplit(Array(0.7, 0.3))
 
     // Train a DecisionTree model.
