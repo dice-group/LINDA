@@ -36,6 +36,7 @@ object RuleMiner {
     this.subjectOperatorMap = spark.createDataFrame(RDF2TransactionMap.subject2Operator
       .map(r => Row(r._1, r._2.map(a => a.toString()))), StructType(subjectOperatorSchema))
       .withColumn("factConf", lit(1.0))
+
     var subjects = RDF2TransactionMap.subject2Operator.map(r => Row(r._1))
     var subject2Id = spark.createDataFrame(subjects, StructType(resourceIdSchema))
       .withColumn("id", row_number().over(Window.orderBy("resource")))
@@ -48,8 +49,9 @@ object RuleMiner {
       "EWS",
       calculateEWSUsingSetOperations(struct(col("antecedent"), col("consequent"))))
       .withColumn("negation", explode(col("EWS"))).drop("EWS")
-    //newRules.write.format("json").save("Data/OriginalAlgorithm/NewRules/" + Name)
-    newRules.show(false);
+    // newRules.write.format("json").save("Data/OriginalAlgorithm/NewRules/" + Name+"/json")
+   //newRules.write.format("parquet").save("Data/OriginalAlgorithm/NewRules/" + Name + "/parquet")
+    this.subjectOperatorMap.write.parquet("Data/OriginalAlgorithm/NewRules/" + Name + "/oriignalKB")
     spark.stop
   }
   def calculateEWSUsingLearning = udf((rule: Row) => {
