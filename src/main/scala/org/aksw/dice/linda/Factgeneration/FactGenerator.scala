@@ -14,14 +14,16 @@ object FactGenerator {
     .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
     .appName("LINDA  (Fact Generator)")
     .getOrCreate()
+  val Name = "rdf"
   def main(args: Array[String]) = {
     val context = spark.sparkContext
     this.rules = spark.read.parquet("/Users/Kunal/workspaceThesis/LINDA/Data/OriginalAlgorithm/NewRules/rdf/parquet");
     this.originalKB = spark.read.parquet("/Users/Kunal/workspaceThesis/LINDA/Data/OriginalAlgorithm/NewRules/rdf/originalKB").withColumn("status", lit("OriginalFact"))
     println(this.originalKB.count())
     // this.rules.show(false)
-    this.rules.limit(10).foreach(r => generateFacts(r))
-    println(this.originalKB.count())
+    this.rules.foreach(r => generateFacts(r))
+    this.originalKB.write.format("json").save("Data/Final/" + Name + "/New Dataset/")
+    this.rules.write.format("json").save("Data/Final/" + Name + "/Rules/")
     spark.stop
 
   }
