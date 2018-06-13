@@ -74,9 +74,8 @@ object DatasetWriter {
       })
       .union(nonAcceptedEntities.rdd.map(y => Row(-1.0, Vectors.sparse(
         this.numberofOperators, y.getSeq[Int](0).distinct.toArray, Array.fill[Double](y.getSeq[Int](0).distinct.size) { 1 })))), struct)
-      .write.format("libsvm").mode(SaveMode.Overwrite).save("/Users/Kunal/workspaceThesis/LINDA/Data/LIBSVMData/" + id)
+     .coalesce(1).write.format("libsvm").mode(SaveMode.Overwrite).save("/Users/Kunal/workspaceThesis/LINDA/Data/LIBSVMData/" + id)
 
   }
-   
 
 }

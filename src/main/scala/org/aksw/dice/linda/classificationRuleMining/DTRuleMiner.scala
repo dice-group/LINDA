@@ -6,8 +6,11 @@ import org.apache.spark.ml.classification.DecisionTreeClassificationModel
 import org.apache.spark.ml.classification.DecisionTreeClassifier
 import org.apache.spark.ml.evaluation.MulticlassClassificationEvaluator
 import org.apache.spark.ml.feature.{ IndexToString, StringIndexer, VectorIndexer }
+import com.google.gson.Gson
+import org.aksw.commons.util.MapReader
 
 object DTRuleMiner {
+
   def main(args: Array[String]) = {
     val spark = SparkSession.builder
       .master("local[*]")
@@ -16,7 +19,7 @@ object DTRuleMiner {
       .getOrCreate()
 
     val data = spark.read.format("libsvm").load("/Users/Kunal/workspaceThesis/LINDA/Data/LIBSVMData/0/00")
-    data.show()
+
     val labelIndexer = new StringIndexer()
       .setInputCol("label")
       .setOutputCol("indexedLabel")
@@ -25,7 +28,7 @@ object DTRuleMiner {
       .setInputCol("features")
       .setOutputCol("indexedFeatures")
       .fit(data)
-    val Array(trainingData, testData) = data.randomSplit(Array(0.7, 0.3))
+    val Array(trainingData, testData) = data.randomSplit(Array(0.6, 0.4))
 
     // Train a DecisionTree model.
     val dt = new DecisionTreeClassifier()
@@ -37,19 +40,13 @@ object DTRuleMiner {
       .setInputCol("prediction")
       .setOutputCol("predictedLabel")
       .setLabels(labelIndexer.labels)
-
     // Chain indexers and tree in a Pipeline.
     val pipeline = new Pipeline()
       .setStages(Array(labelIndexer, featureIndexer, dt, labelConverter))
-
     // Train model. This also runs the indexers.
     val model = pipeline.fit(trainingData)
-
     // Make predictions.
     val predictions = model.transform(testData)
-
-    // Select example rows to display.
-    predictions.select("predictedLabel", "label", "features").show(5)
 
     // Select (prediction, true label) and compute test error.
     val evaluator = new MulticlassClassificationEvaluator()
@@ -60,7 +57,13 @@ object DTRuleMiner {
     println(s"Test Error = ${(1.0 - accuracy)}")
 
     val treeModel = model.stages(2).asInstanceOf[DecisionTreeClassificationModel]
-    println(s"Learned classification tree model:\n ${treeModel.toDebugString}")
+    // println(s"Learned classification tree model:\n ${treeModel.toDebugString}")
+
+    //  DTParser.parserDT(treeModel, "0")
+    println(treeModel.toDebugString)
+    DTParser.parse(treeModel, "0")
+
     spark.stop
   }
+
 }
