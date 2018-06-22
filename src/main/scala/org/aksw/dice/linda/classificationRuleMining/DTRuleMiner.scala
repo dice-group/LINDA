@@ -60,7 +60,7 @@ object DTRuleMiner {
     // println(s"Learned classification tree model:\n ${treeModel.toDebugString}")
 
     //  DTParser.parserDT(treeModel, "0")
-    println(treeModel.toDebugString)
+
     DTParser.parse(treeModel, "0")
 
     spark.stop
