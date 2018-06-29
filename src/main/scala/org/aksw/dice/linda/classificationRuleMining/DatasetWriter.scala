@@ -36,8 +36,8 @@ object DatasetWriter {
     val context = spark.sparkContext
     val triplesDF = spark.read.rdf(Lang.NTRIPLES)(input)
     RDF2TransactionMap.readFromDF(triplesDF)
-    val convertToVector = udf((array: Seq[Long]) => {
-      array.distinct.toArray.map(_.toInt).sortBy(a => a)
+    val convertToVector = udf((array: Seq[Int]) => {
+      array.distinct.toArray.sortBy(a => a)
     })
     this.subjectOperatorMap = spark.createDataFrame(RDF2TransactionMap.subject2Operator
       .map(r => Row(r._1, r._2.map(a => a.toString()))), StructType(subjectOperatorSchema))
@@ -49,8 +49,8 @@ object DatasetWriter {
       .withColumn("operatorIds", row_number().over(w))
       .drop(col("resources"))
 
-    this.operator2Id.write.mode(SaveMode.Overwrite).format("parquet").save("/Users/Kunal/workspaceThesis/LINDA/Data/Maps/OperatorId")
-    this.subjectOperatorMap.write.mode(SaveMode.Overwrite).format("parquet").save("/Users/Kunal/workspaceThesis/LINDA/Data/Maps/SubjectOperatorMap")
+    // this.operator2Id.write.mode(SaveMode.Overwrite).format("parquet").save("/Users/Kunal/workspaceThesis/LINDA/Data/Maps/OperatorId")
+    //this.subjectOperatorMap.write.mode(SaveMode.Overwrite).format("parquet").save("/Users/Kunal/workspaceThesis/LINDA/Data/Maps/SubjectOperatorMap")
     this.numberofOperators = this.operator2Id.count().toInt
     this.libsvmDataset = subjectOperatorMap.withColumn("operator", explode(col("operators")))
       .join(operator2Id, "operator").groupBy(col("subject"), col("operators"))
@@ -59,24 +59,24 @@ object DatasetWriter {
       .withColumn("operatorsIds", convertToVector(col("x"))).drop("x")
 
     operator2Id.limit(3).rdd.foreach(r => libsvmwriter(
-      r.getLong(1),
-      libsvmDataset.select("operatorsIds").where(array_contains(col("operatorsIds"), r.getLong(1))),
-      libsvmDataset.select("operatorsIds").where(!array_contains(col("operatorsIds"), r.getLong(1)))))
+      r.getInt(1),
+      libsvmDataset.select("operatorsIds").where(array_contains(col("operatorsIds"), r.getInt(1))),
+      libsvmDataset.select("operatorsIds").where(!array_contains(col("operatorsIds"), r.getInt(1)))))
     spark.stop
 
   }
-  def libsvmwriter(id: Long, acceptedEntities: DataFrame, nonAcceptedEntities: DataFrame) {
+  def libsvmwriter(id: Int, acceptedEntities: DataFrame, nonAcceptedEntities: DataFrame) {
     val struct = StructType(List(
       StructField("label", DoubleType, false),
       StructField("features", VectorType, false)))
     spark.sqlContext.createDataFrame(acceptedEntities.rdd.map(x =>
-
       {
         val j = x.getSeq[Int](0).filter(_ != id).distinct
-        Row(1.0, Vectors.sparse(this.numberofOperators, j.toArray, Array.fill[Double](j.size) { 1 }))
+        Row(1.0, Vectors.sparse(this.numberofOperators + 1, j.toArray, Array.fill[Double](j.size) { 1 }))
       })
       .union(nonAcceptedEntities.rdd.map(y => Row(-1.0, Vectors.sparse(
-        this.numberofOperators, y.getSeq[Int](0).distinct.toArray, Array.fill[Double](y.getSeq[Int](0).distinct.size) { 1 })))), struct)
+        this.numberofOperators + 1, y.getSeq[Int](0).distinct.toArray, Array.fill[Double](y.getSeq[Int](0).distinct.size) { 1 })))), struct)
+
       .coalesce(1).write.format("libsvm").mode(SaveMode.Overwrite).save("/Users/Kunal/workspaceThesis/LINDA/Data/LIBSVMData/" + id)
 
   }
