@@ -49,9 +49,10 @@ object RuleMiner {
       "EWS",
       calculateEWSUsingSetOperations(struct(col("antecedent"), col("consequent"))))
       .withColumn("negation", explode(col("EWS"))).drop("EWS")
-    // newRules.write.format("json").save("Data/OriginalAlgorithm/NewRules/" + Name+"/json")
-   //newRules.write.format("parquet").save("Data/OriginalAlgorithm/NewRules/" + Name + "/parquet")
     this.subjectOperatorMap.write.parquet("Data/OriginalAlgorithm/NewRules/" + Name + "/oriignalKB")
+      // newRules.write.format("json").save("Data/OriginalAlgorithm/NewRules/" + Name+"/json")
+   //newRules.write.format("parquet").save("Data/OriginalAlgorithm/NewRules/" + Name + "/parquet")
+  
     spark.stop
   }
   def calculateEWSUsingLearning = udf((rule: Row) => {

@@ -6,11 +6,10 @@ import com.google.gson.Gson
 import util.control.Breaks._
 
 object DTParser {
-  case class Rule(antecedant: List[String], consequent: String, negation: List[String]) {
-    def this(id: String) = this(null, id, null)
+  case class Rule(antecedant: List[String], consequent: Int, negation: List[String]) {
     override def toString() = this.antecedant + " " + this.negation + " " + this.consequent
   }
-  def parse(tree: DecisionTreeClassificationModel, id: String) {
+  def parse(tree: DecisionTreeClassificationModel, id: Int): List[Rule] = {
     var lines = tree.toDebugString.lines.toList
     var stack = new ListBuffer[String]()
     var result = new ListBuffer[List[String]]()
@@ -18,7 +17,7 @@ object DTParser {
       if (lines(0).contains("If")) {
         stack.append(lines(0).trim())
       } else if (lines(0).contains("Predict")) {
-        result.append(stack.toList :+ lines(0))
+        result.append(stack.toList :+ lines(0).replace(")", "").trim())
         if (stack(stack.length - 1).contains("Else"))
           stack.remove(stack.length - 1)
       } else if (lines(0).contains("Else")) {
@@ -27,15 +26,12 @@ object DTParser {
       }
       lines = lines.tail
     }
-    result.toList.foreach(r => parserLine(r, id))
+    result.toList.filter(r => !r(r.size - 1).contains("Predict: 0.0")).map(r =>
+      parserLine(r, id))
   }
-  def parserLine(line: List[String], id: String) {
-    if (line.contains("Predict: 0.0") || (line == null)) {
-      return
-    }
+  def parserLine(line: List[String], id: Int): Rule = {
     var antecedant = new ListBuffer[String]
     var negation = new ListBuffer[String]
-
     line.foreach(a => {
       if (!a.contains("Predict")) {
         var content = a.substring(a.indexOf('('), a.indexOf(')')).split(" ")
@@ -48,7 +44,8 @@ object DTParser {
         }
       }
     })
-    println(new Rule(antecedant.toList, id, negation.toList).toString())
+    //Cannot do transformation here as it is in memory
+    new Rule(antecedant.toList, id, negation.toList)
   }
 
 }
