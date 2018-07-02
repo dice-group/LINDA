@@ -6,7 +6,7 @@ import com.google.gson.Gson
 import util.control.Breaks._
 
 object DTParser {
-  case class Rule(antecedant: List[String], consequent: Int, negation: List[String]) {
+  case class Rule(antecedant: List[Int], consequent: Int, negation: List[Int]) {
     override def toString() = this.antecedant + " " + this.negation + " " + this.consequent
   }
   def parse(tree: DecisionTreeClassificationModel, id: Int): List[Rule] = {
@@ -30,17 +30,17 @@ object DTParser {
       parserLine(r, id))
   }
   def parserLine(line: List[String], id: Int): Rule = {
-    var antecedant = new ListBuffer[String]
-    var negation = new ListBuffer[String]
+    var antecedant = new ListBuffer[Int]
+    var negation = new ListBuffer[Int]
     line.foreach(a => {
       if (!a.contains("Predict")) {
         var content = a.substring(a.indexOf('('), a.indexOf(')')).split(" ")
         if (((content.contains("not")) && (content.contains("{0.0}")))
           || (((!content.contains("not")) && (content.contains("{1.0}"))))) {
-          antecedant.append(content(1))
+          antecedant.append(content(1).toInt)
         } else if ((!content.contains("not")) && (content.contains("{0.0}"))
           || (((content.contains("not")) && (content.contains("{1.0}"))))) {
-          negation.append(content(1))
+          negation.append(content(1).toInt)
         }
       }
     })

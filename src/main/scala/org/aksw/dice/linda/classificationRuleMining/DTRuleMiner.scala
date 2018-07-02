@@ -56,28 +56,30 @@ object DTRuleMiner {
     val accuracy = evaluator.evaluate(predictions)
     val treeModel = model.stages(2).asInstanceOf[DecisionTreeClassificationModel]
 
-    val rules = spark.createDataFrame(DTParser.parse(treeModel, 0))
-    /* val getBody = udf((bodyInt: List[Int]) => {
+    val rules = spark.createDataFrame(DTParser.parse(treeModel, 1))
+
+    val getBody = udf((bodyInt: Seq[Int]) => {
       {
-        operator2Id.filter(col("operatorIds").isin(bodyInt: _*)).select(col("operators")).show(false)
-
+        this.operator2Id.select("operator")
+          .where(col("operatorIds").isin(bodyInt: _*))
+          .rdd.map(r => r.getString(0)).collect().toList
       }
-    })*/
-
-    rules.foreach(r => {
-      println(r.getList(0))
-      getBody(r.getList(0))
     })
+
+    val getHead = udf((headInt: Int) => {
+      {
+        this.operator2Id.select("operator")
+          .where(col("operatorIds") === (headInt))
+          .rdd.map(r => r.getString(0)).collect().toList
+      }
+    })
+    rules.withColumn("body", getBody(col("antecedant")))
+      .withColumn("negative", getBody(col("negation")))
+      .withColumn("head", getHead(col("consequent")))
+      .show(false)
+    //this.operator2Id.show(false)
 
     spark.stop
   }
-  def getBody(bodyInt: java.util.List[String]) {
-    {
-      def containsEWS = udf((input: Integer) => {
-        bodyInt.contains(input.toString())
-      })
-      operator2Id.filter(containsEWS(col("operatorIds"))).show(false)
 
-    }
-  }
 }
