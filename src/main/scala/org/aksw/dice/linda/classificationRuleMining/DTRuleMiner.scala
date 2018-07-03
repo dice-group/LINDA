@@ -76,6 +76,9 @@ object DTRuleMiner {
     rules.withColumn("body", getBody(col("antecedant")))
       .withColumn("negative", getBody(col("negation")))
       .withColumn("head", getHead(col("consequent")))
+      .drop("antecedant")
+      .drop("negation")
+      .drop("consequent")
       .show(false)
     //this.operator2Id.show(false)
 
