@@ -1,5 +1,5 @@
 
-package org.aksw.dice.linda.miner.datastructure
+package org.aksw.dice.linda.Utils
 
 import org.apache.spark.sql.{ DataFrame, _ }
 import org.slf4j.LoggerFactory

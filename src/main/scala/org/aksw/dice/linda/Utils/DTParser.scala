@@ -1,12 +1,14 @@
-package org.aksw.dice.linda.classificationRuleMining
+package org.aksw.dice.linda.Utils
 
 import org.apache.spark.ml.classification.DecisionTreeClassificationModel
 import scala.collection.mutable.ListBuffer
-import com.google.gson.Gson
 import util.control.Breaks._
 
 object DTParser {
-  case class Rule(antecedant: List[Int], consequent: Int, negation: List[Int]) {
+  case class Rule(
+    antecedant: List[Int],
+    consequent: Int,
+    negation:   List[Int]) {
     override def toString() = this.antecedant + " " + this.negation + " " + this.consequent
   }
   def parse(tree: DecisionTreeClassificationModel, id: Int): List[Rule] = {
@@ -27,9 +29,11 @@ object DTParser {
       lines = lines.tail
     }
     result.toList.filter(r => !r(r.size - 1).contains("Predict: 0.0")).map(r =>
-      parserLine(r, id))
+    parserLine(r, id))
   }
-  def parserLine(line: List[String], id: Int): Rule = {
+  def parserLine(
+    line: List[String],
+    id:   Int): Rule = {
     var antecedant = new ListBuffer[Int]
     var negation = new ListBuffer[Int]
     line.foreach(a => {

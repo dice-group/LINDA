@@ -1,6 +1,7 @@
-package org.askw.dice.linda.miner.PatternRuleMining
+package org.aksw.dice.linda.EWS
 
 import org.apache.spark.sql.{ SparkSession, Encoder, _ }
+import org.aksw.dice.linda.Utils.LINDAProperties._
 import org.apache.spark.sql.expressions.Window;
 import org.slf4j.LoggerFactory
 import org.apache.jena.riot.Lang
@@ -10,13 +11,13 @@ import scala.collection.mutable
 import org.apache.spark.sql.functions._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.types._
-import org.aksw.dice.linda.miner.datastructure.RDF2TransactionMap
+import org.aksw.dice.linda.Utils.RDF2TransactionMap
+import org.aksw.dice.linda.Utils.LINDAProperties._
 
-object RuleMiner {
+object EWSRuleMiner {
 
   private val logger = LoggerFactory.getLogger(this.getClass.getName)
-  val input = "Data/rdf.nt"
-  val Name = "rdf"
+
   var rules: DataFrame = _
   var subjectOperatorMap: DataFrame = _
   var transactionsDF: DataFrame = _
@@ -24,19 +25,20 @@ object RuleMiner {
   val resourceIdSchema = List(StructField("resource", StringType, true))
   val subjectOperatorSchema = List(StructField("subject", StringType, true), StructField("operators", ArrayType(StringType, true), true))
   val fpgrowth = new FPGrowth()
+
   def main(args: Array[String]) = {
     val spark = SparkSession.builder
-      .master("local[*]")
-      .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
-      .appName("LINDA  (Original Miner)")
+      .master(SPARK_SYSTEM)
+      .config(SERIALIZER, KYRO_SERIALIZER)
+      .config(WAREHOUSE, DIRECTORY)
+      .appName(APP_EWS_MINER)
       .getOrCreate()
     val context = spark.sparkContext
-    val triplesDF = spark.read.rdf(Lang.NTRIPLES)(input)
+    val triplesDF = spark.read.rdf(Lang.NTRIPLES)(INPUT_DATASET)
     RDF2TransactionMap.readFromDF(triplesDF)
     this.subjectOperatorMap = spark.createDataFrame(RDF2TransactionMap.subject2Operator
       .map(r => Row(r._1, r._2.map(a => a.toString()))), StructType(subjectOperatorSchema))
       .withColumn("factConf", lit(1.0))
-
     var subjects = RDF2TransactionMap.subject2Operator.map(r => Row(r._1))
     var subject2Id = spark.createDataFrame(subjects, StructType(resourceIdSchema))
       .withColumn("id", row_number().over(Window.orderBy("resource")))
@@ -49,10 +51,10 @@ object RuleMiner {
       "EWS",
       calculateEWSUsingSetOperations(struct(col("antecedent"), col("consequent"))))
       .withColumn("negation", explode(col("EWS"))).drop("EWS")
-    this.subjectOperatorMap.write.parquet("Data/OriginalAlgorithm/NewRules/" + Name + "/oriignalKB")
-      // newRules.write.format("json").save("Data/OriginalAlgorithm/NewRules/" + Name+"/json")
-   //newRules.write.format("parquet").save("Data/OriginalAlgorithm/NewRules/" + Name + "/parquet")
-  
+    this.subjectOperatorMap.write.mode(SaveMode.Overwrite).parquet(INPUT_DATASET_SUBJECT_OPERATOR_MAP)
+    // newRules.write.mode(SaveMode.Overwrite).format("json").save(EWS_RULES_JSON)
+    newRules.write.mode(SaveMode.Overwrite).parquet(EWS_RULES)
+
     spark.stop
   }
   def calculateEWSUsingLearning = udf((rule: Row) => {

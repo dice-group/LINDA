@@ -1,6 +1,7 @@
 package org.aksw.dice.linda.classificationRuleMining
 
 import org.apache.spark.sql.SparkSession
+import org.aksw.dice.linda.Utils.LINDAProperties._
 import org.apache.spark.sql.functions._
 import org.apache.spark.ml.Pipeline
 import org.apache.spark.ml.classification.DecisionTreeClassificationModel
@@ -10,18 +11,21 @@ import org.apache.spark.ml.feature.{ IndexToString, StringIndexer, VectorIndexer
 import org.apache.spark.sql.{ SparkSession, Encoder, _ }
 import scala.collection.mutable
 import scala.collection.JavaConverters._
+import org.aksw.dice.linda.Utils.DTParser
+import org.aksw.dice.linda.Utils.LINDAProperties._
 
 object DTRuleMiner {
+
   var operator2Id: DataFrame = _
   def main(args: Array[String]) = {
     val spark = SparkSession.builder
-      .master("local[*]")
-      .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
-      .appName("LINDA (DT Classifier) ")
+      .master(SPARK_SYSTEM)
+      .config(SERIALIZER, KYRO_SERIALIZER)
+      .appName(APP_DT_MINER)
       .getOrCreate()
 
-    val data = spark.read.format("libsvm").load("/Users/Kunal/workspaceThesis/LINDA/Data/LIBSVMData/0/00")
-    this.operator2Id = spark.read.format("parquet").load("/Users/Kunal/workspaceThesis/LINDA/Data/Maps/OperatorId")
+    val data = spark.read.format("libsvm").load(LIBSVM_DATASET + "0/00")
+    this.operator2Id = spark.read.format("parquet").load()
     val labelIndexer = new StringIndexer()
       .setInputCol("label")
       .setOutputCol("indexedLabel")
@@ -31,7 +35,7 @@ object DTRuleMiner {
       .setOutputCol("indexedFeatures")
       .fit(data)
     val Array(trainingData, testData) = data.randomSplit(Array(0.6, 0.4))
-    // Train a DecisionTree model.
+    //Train
     val dt = new DecisionTreeClassifier()
       .setLabelCol("indexedLabel")
       .setFeaturesCol("indexedFeatures")
@@ -79,8 +83,8 @@ object DTRuleMiner {
       .drop("antecedant")
       .drop("negation")
       .drop("consequent")
-      .show(false)
-    //this.operator2Id.show(false)
+      .write.mode(SaveMode.Append)
+      .json(DT_RULES)
 
     spark.stop
   }

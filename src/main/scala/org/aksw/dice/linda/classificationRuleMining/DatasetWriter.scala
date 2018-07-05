@@ -7,34 +7,32 @@ import org.apache.spark.sql.functions._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.types._
 import scala.collection.mutable
-import org.aksw.dice.linda.miner.datastructure.RDF2TransactionMap
+import org.aksw.dice.linda.Utils.RDF2TransactionMap
 import scala.collection.mutable.ListBuffer
 import org.apache.spark.ml.linalg.Vectors
 import org.apache.hadoop.fs._
 import org.apache.spark.sql.expressions.Window
+import org.aksw.dice.linda.Utils.LINDAProperties._
 
 object DatasetWriter {
   var subjectOperatorMap: DataFrame = _
   var libsvmDataset: DataFrame = _
 
   var operator2Id: DataFrame = _
-  val SPACE: String = " ";
-  val COLON: String = ":";
-  val input = "Data/rdf.nt"
   lazy val subjectOperatorSchema = List(StructField("subject", StringType, true), StructField("operators", ArrayType(StringType, true), true))
   lazy val operatorIdSchema = List(StructField("resources", ArrayType(StringType), true))
   lazy val subjectIdSchema = List(StructField("subject", StringType, true))
   var numberofOperators: Int = 0
   val spark = SparkSession.builder
-    .master("local[*]")
-    .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
-    .appName("LINDA (Data Set Creater)")
+    .master(SPARK_SYSTEM)
+    .config(SERIALIZER, KYRO_SERIALIZER)
+    .appName(APP_DATASET_CREATER)
     .getOrCreate()
 
   def main(args: Array[String]) = {
 
     val context = spark.sparkContext
-    val triplesDF = spark.read.rdf(Lang.NTRIPLES)(input)
+    val triplesDF = spark.read.rdf(Lang.NTRIPLES)(INPUT_DATASET)
     RDF2TransactionMap.readFromDF(triplesDF)
     val convertToVector = udf((array: Seq[Int]) => {
       array.distinct.toArray.sortBy(a => a)
@@ -49,8 +47,6 @@ object DatasetWriter {
       .withColumn("operatorIds", row_number().over(w))
       .drop(col("resources"))
 
-    // this.operator2Id.write.mode(SaveMode.Overwrite).format("parquet").save("/Users/Kunal/workspaceThesis/LINDA/Data/Maps/OperatorId")
-    //this.subjectOperatorMap.write.mode(SaveMode.Overwrite).format("parquet").save("/Users/Kunal/workspaceThesis/LINDA/Data/Maps/SubjectOperatorMap")
     this.numberofOperators = this.operator2Id.count().toInt
     this.libsvmDataset = subjectOperatorMap.withColumn("operator", explode(col("operators")))
       .join(operator2Id, "operator").groupBy(col("subject"), col("operators"))
@@ -73,11 +69,10 @@ object DatasetWriter {
       {
         val j = x.getSeq[Int](0).filter(_ != id).distinct
         Row(1.0, Vectors.sparse(this.numberofOperators + 1, j.toArray, Array.fill[Double](j.size) { 1 }))
-      })
-      .union(nonAcceptedEntities.rdd.map(y => Row(-1.0, Vectors.sparse(
-        this.numberofOperators + 1, y.getSeq[Int](0).distinct.toArray, Array.fill[Double](y.getSeq[Int](0).distinct.size) { 1 })))), struct)
-
-      .coalesce(1).write.format("libsvm").mode(SaveMode.Overwrite).save("/Users/Kunal/workspaceThesis/LINDA/Data/LIBSVMData/" + id)
+      }).union(nonAcceptedEntities.rdd.map(y => Row(-1.0, Vectors.sparse(
+      this.numberofOperators + 1, y.getSeq[Int](0).distinct.toArray, Array.fill[Double](y.getSeq[Int](0).distinct.size) { 1 })))), struct)
+      //TODO: Coalesce has to be changed
+      .coalesce(1).write.format("libsvm").mode(SaveMode.Overwrite).save(LIBSVM_DATASET + id)
 
   }
 
