@@ -9,7 +9,7 @@ object LINDAProperties {
   final val INPUT_DATASET = "Data/rdf.nt"
   final val INPUT_DATASET_SUBJECT_OPERATOR_MAP = "Data/" + DATASET_NAME + "/Maps/SubjectOperatorMap/parquet"
 
-  final val OPERATORID_MAP = "Data/" + DATASET_NAME + "/Maps/OperatorId/parquet"
+  final val OPERATOR_ID_MAP = "Data/" + DATASET_NAME + "/Maps/OperatorId/parquet"
   final val OPERATORID_MAP_JSON = "Data/" + DATASET_NAME + "/Maps/OperatorId/json"
   final val INPUT_DATASET_OPERATOR_SUBJECT_MAP = "Data/" + DATASET_NAME + "/Maps/OperatorSubjectMap/parquet"
   final val INPUT_DATASET_OPERATOR_SUBJECT_JSON = "Data/" + DATASET_NAME + "/Maps/OperatorSubjectMap/parquet"

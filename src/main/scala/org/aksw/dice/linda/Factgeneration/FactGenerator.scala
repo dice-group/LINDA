@@ -28,6 +28,7 @@ object FactGenerator {
 
   def generateFacts(
     rule: Row): Unit = {
+    println ("here")
     val body = rule.getSeq(0)
     val head = rule.getSeq[String](1).toArray
     val confidence = rule.getDouble(2)

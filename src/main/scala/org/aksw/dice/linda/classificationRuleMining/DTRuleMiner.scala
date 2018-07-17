@@ -21,11 +21,12 @@ object DTRuleMiner {
     val spark = SparkSession.builder
       .master(SPARK_SYSTEM)
       .config(SERIALIZER, KYRO_SERIALIZER)
+      .config(WAREHOUSE, DIRECTORY)
       .appName(APP_DT_MINER)
       .getOrCreate()
 
-    val data = spark.read.format("libsvm").load(LIBSVM_DATASET + "0/00")
-    this.operator2Id = spark.read.format("parquet").load()
+    val data = spark.read.format("libsvm").load(LIBSVM_DATASET + "1/1")
+    this.operator2Id = spark.read.format("parquet").load(OPERATOR_ID_MAP)
     val labelIndexer = new StringIndexer()
       .setInputCol("label")
       .setOutputCol("indexedLabel")
@@ -83,8 +84,6 @@ object DTRuleMiner {
       .drop("antecedant")
       .drop("negation")
       .drop("consequent")
-      .write.mode(SaveMode.Append)
-      .json(DT_RULES)
 
     spark.stop
   }
