@@ -49,61 +49,78 @@ object EWSRuleMiner {
       .withColumn("operator", explode(col("operators"))).drop("operators")
       .drop("factConf").groupBy(col("operator"))
       .agg(collect_list(col("subject")).as("subjects"))
-
-    var transactionsRDD = RDF2TransactionMap.subject2Operator.map(r => r._2.map(a => a.toString()))
-
-    import spark.implicits._
-    this.transactionsDF = transactionsRDD.toDF("items")
     fpgrowth.setItemsCol("items").setMinSupport(0.02).setMinConfidence(0.5)
-    val model = fpgrowth.fit(transactionsDF)
+    val model = fpgrowth.fit(this.subjectOperatorMap.select(col("operators").as("items")))
 
     val newRules = model.associationRules.limit(5).withColumn(
       "EWS",
-      calculateEWSUsingSetOperations(struct(col("antecedent"), col("consequent"))))
+      calculateEWSUsingLearning(struct(col("antecedent"), col("consequent"))))
       .withColumn("negation", explode(col("EWS"))).drop("EWS")
 
     //this.subjectOperatorMap.write.mode(SaveMode.Overwrite).parquet(INPUT_DATASET_SUBJECT_OPERATOR_MAP)
     // newRules.write.mode 	(SaveMode.Overwrite).format("json").save(EWS_RULES_JSON)
     newRules.show(false)
-    //write.mode(SaveMode.Overwrite).parquet(EWS_RULES)
+    //write.mode(SaveMode.Overwrite).parquet(EWS_RULES)*/
     spark.stop
+  }
+
+  def calculateEWS(rule: Row) {
+
+    // .rdd.map(r => r.getString(0)).collect().toList
   }
 
   def calculateEWSUsingLearning = udf((rule: Row) => {
     val head = rule.getSeq(1)
     val body = rule.getSeq(0)
     fpgrowth.setMinConfidence(0.0).setMinSupport(0.01).setItemsCol("patterns")
-    def containsBody = udf((list: mutable.WrappedArray[String]) => {
-      list.exists(a => body.contains(a))
-    })
-    def containshead = udf((list: mutable.WrappedArray[String]) => {
-      list.exists(a => head.contains(a))
-    })
+
     def filterBody = udf((list: mutable.WrappedArray[String]) => {
       list.filter(!body.contains(_))
     })
-    def containsEWS = udf((list: mutable.WrappedArray[String], ele: String) => {
-      list.exists(a => a.contains(ele))
-    })
-    val negativeTransactions = transactionsDF.select(col("items"))
-      .where(containsBody(col("items"))).where(!containshead(col("items")))
-      .withColumn("patterns", filterBody(col("items"))).drop("items")
+
+    val bodyFacts = operatorSubjectMap.select(col("subjects"))
+      .where(col("operator").isin(body: _*)).withColumn("subject", explode(col("subjects"))).drop("subjects")
+    val headFacts = operatorSubjectMap.select(col("subjects"))
+      .where(col("operator").isin(head: _*)).withColumn("subject", explode(col("subjects"))).drop("subjects")
+
+    val negativeTransactions = bodyFacts.except(headFacts).join(subjectOperatorMap, "subject")
+      .withColumn("patterns", filterBody(col("operators")))
+      .select("patterns")
+
     val EWS = fpgrowth.fit(negativeTransactions).freqItemsets
-      .withColumn("EWS", explode(col("items")))
+      .withColumn("operator", explode(col("items")))
       .drop(col("items"))
       .drop(col("freq"))
-    val ewsTransaction = transactionsDF.select(col("items"))
-      .where(containsBody(col("items")) && containshead(col("items")))
-      .join(EWS, containsEWS(col("items"), col("EWS")))
-      .groupBy(col("EWS")).agg(count("*").as("numerator"))
-    val bodyTransaction = transactionsDF.select(col("items"))
-      .where(containsBody(col("items"))).join(EWS, containsEWS(col("items"), col("EWS")))
-      .groupBy(col("EWS")).agg(count("*").as("denominator"))
-    ewsTransaction.join(bodyTransaction, "EWS")
-      .withColumn("confidence", col("numerator").divide(col("denominator")))
-      .filter("confidence >= 0.3")
+
+    val ewsElements = subjectOperatorMap.join(headFacts, "subject").union(subjectOperatorMap.join(bodyFacts, "subject"))
+      .withColumn("operator", explode(col("operators")))
+      .drop("operators")
+      .drop("factConf")
+      .join(operatorSubjectMap.join(EWS, "operator")
+        .drop("EWS")
+        .withColumn("subject2", explode(col("subjects")))
+        .drop("subjects"), "operator")
+    val ewsTransaction = ewsElements.select("operator", "subject")
+      .union(ewsElements.select("operator", "subject2"))
+      .groupBy(col("operator")).agg(count("*")
+        .as("numerator"))
+    val bodyElements = subjectOperatorMap.join(bodyFacts, "subject")
+      .withColumn("operator", explode(col("operators")))
+      .drop("operators")
+      .drop("factConf")
+      .join(operatorSubjectMap.join(EWS, "operator")
+        .drop("EWS")
+        .withColumn("subject2", explode(col("subjects")))
+        .drop("subjects"), "operator")
+    val bodyTransaction = bodyElements.select("operator", "subject").union(bodyElements.select("operator", "subject2"))
+      .groupBy(col("operator")).agg(count("*")
+        .as("denominator"))
+    ewsTransaction.join(bodyTransaction, "operator")
+      .withColumn("confidence", col("numerator")
+        .divide(col("denominator"))).filter("confidence >= 0.3")
       .drop(col("numerator"))
-      .drop(col("denominator")).rdd.map(r => r.getString(0)).collect().toList
+      .drop(col("denominator"))
+      .rdd.map(r => r.getString(0)).collect().toList
 
   })
 
@@ -130,7 +147,8 @@ object EWSRuleMiner {
         .drop("EWS")
         .withColumn("subject2", explode(col("subjects")))
         .drop("subjects"), "operator")
-    val ewsTransaction = ewsElements.select("operator", "subject").union(ewsElements.select("operator", "subject2"))
+    val ewsTransaction = ewsElements.select("operator", "subject")
+      .union(ewsElements.select("operator", "subject2"))
       .groupBy(col("operator")).agg(count("*")
         .as("numerator"))
 
