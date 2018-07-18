@@ -17,7 +17,9 @@ import org.aksw.dice.linda.Utils.LINDAProperties._
 object EWSRuleMiner {
 
   private val logger = LoggerFactory.getLogger(this.getClass.getName)
-
+  val tsvWithHeaderOptions: Map[String, String] = Map(
+    ("delimiter", "\t"),
+    ("header", "true"))
   var rules: DataFrame = _
   var subjectOperatorMap: DataFrame = _
   var operatorSubjectMap: DataFrame = _
@@ -58,15 +60,14 @@ object EWSRuleMiner {
       .withColumn("negation", explode(col("EWS"))).drop("EWS")
 
     //this.subjectOperatorMap.write.mode(SaveMode.Overwrite).parquet(INPUT_DATASET_SUBJECT_OPERATOR_MAP)
-    // newRules.write.mode 	(SaveMode.Overwrite).format("json").save(EWS_RULES_JSON)
-    newRules.show(false)
-    //write.mode(SaveMode.Overwrite).parquet(EWS_RULES)*/
+    newRules.withColumn("BodyPos", concat_ws(" ", col("antecedent")))
+      .withColumn("BodyNeg", concat_ws(" ", col("negation")))
+      .withColumn("Head", concat_ws(" ",col("consequent")))
+      .drop("antecedent").drop("negation").drop("consequent")
+      .write.mode(SaveMode.Overwrite)
+      .option("header","true")
+      .option("delimiter", "\t").csv(EWS_RULES)
     spark.stop
-  }
-
-  def calculateEWS(rule: Row) {
-
-    // .rdd.map(r => r.getString(0)).collect().toList
   }
 
   def calculateEWSUsingLearning = udf((rule: Row) => {

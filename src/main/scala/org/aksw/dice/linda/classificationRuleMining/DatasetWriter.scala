@@ -16,7 +16,7 @@ import org.aksw.dice.linda.Utils.LINDAProperties._
 
 object DatasetWriter {
   var subjectOperatorMap: DataFrame = _
-  var operatorSubjectMap: DataFrame = _
+
   var libsvmDataset: DataFrame = _
 
   var operator2Id: DataFrame = _
@@ -41,15 +41,11 @@ object DatasetWriter {
     this.subjectOperatorMap = spark.createDataFrame(RDF2TransactionMap.subject2Operator
       .map(r => Row(r._1, r._2.map(a => a.toString()))), StructType(subjectOperatorSchema))
       .withColumn("factConf", lit(1.0))
-    this.operatorSubjectMap = this.subjectOperatorMap
-      .withColumn("operator", explode(col("operators"))).drop("operators")
-      .drop("factConf").groupBy(col("operator"))
-      .agg(collect_list(col("subject")).as("subjects"))
-    val w = Window.orderBy("operator")
+
     this.operator2Id = spark.createDataFrame(RDF2TransactionMap.subject2Operator
       .map(r => Row(r._2.map(a => a.toString()))), StructType(operatorIdSchema))
       .withColumn("operator", explode(col("resources")))
-      .withColumn("operatorIds", row_number().over(w))
+      .withColumn("operatorIds", row_number().over(Window.orderBy("operator")))
       .drop(col("resources"))
 
     this.numberofOperators = this.operator2Id.count().toInt
