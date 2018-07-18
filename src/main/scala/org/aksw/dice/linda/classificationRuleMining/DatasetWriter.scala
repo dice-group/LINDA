@@ -10,7 +10,7 @@ import scala.collection.mutable
 import org.aksw.dice.linda.Utils.RDF2TransactionMap
 import scala.collection.mutable.ListBuffer
 import org.apache.spark.ml.linalg.Vectors
-import org.apache.hadoop.fs._
+
 import org.apache.spark.sql.expressions.Window
 import org.aksw.dice.linda.Utils.LINDAProperties._
 
@@ -40,7 +40,7 @@ object DatasetWriter {
     })
     this.subjectOperatorMap = spark.createDataFrame(RDF2TransactionMap.subject2Operator
       .map(r => Row(r._1, r._2.map(a => a.toString()))), StructType(subjectOperatorSchema))
-      .withColumn("factConf", lit(1.0))
+     
 
     this.operator2Id = spark.createDataFrame(RDF2TransactionMap.subject2Operator
       .map(r => Row(r._2.map(a => a.toString()))), StructType(operatorIdSchema))

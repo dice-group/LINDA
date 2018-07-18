@@ -20,14 +20,24 @@ object EWSRuleMiner {
   val tsvWithHeaderOptions: Map[String, String] = Map(
     ("delimiter", "\t"),
     ("header", "true"))
-  var rules: DataFrame = _
   var subjectOperatorMap: DataFrame = _
   var operatorSubjectMap: DataFrame = _
   var transactionsDF: DataFrame = _
   var operator2Id: DataFrame = _
+
+  val resultSchema = StructType(
+    StructField("conf", IntegerType, true) ::
+      StructField("s", StringType, true) ::
+      StructField("p", StringType, true) ::
+      StructField("o", StringType, true) :: Nil)
+  var newFacts: DataFrame = _
   val resourceIdSchema = List(StructField("resource", StringType, true))
-  val subjectOperatorMapSchema = List(StructField("subject", StringType, true), StructField("operators", ArrayType(StringType, true), true))
-  val operatorSubjectSchema = List(StructField("subject", StringType, true), StructField("operators", ArrayType(StringType, true), true))
+  val subjectOperatorMapSchema = List(
+    StructField("subject", StringType, true),
+    StructField("operators", ArrayType(StringType, true), true))
+  val operatorSubjectSchema = List(
+    StructField("subject", StringType, true),
+    StructField("operators", ArrayType(StringType, true), true))
 
   val fpgrowth = new FPGrowth()
 
@@ -40,17 +50,15 @@ object EWSRuleMiner {
       .getOrCreate()
     val context = spark.sparkContext
     val triplesDF = spark.read.rdf(Lang.NTRIPLES)(INPUT_DATASET)
-
     RDF2TransactionMap.readFromDF(triplesDF)
-
     this.subjectOperatorMap = spark.createDataFrame(RDF2TransactionMap.subject2Operator
       .map(r => Row(r._1, r._2.map(a => a.toString()))), StructType(subjectOperatorMapSchema))
-      .withColumn("factConf", lit(1.0))
 
     this.operatorSubjectMap = this.subjectOperatorMap
       .withColumn("operator", explode(col("operators"))).drop("operators")
-      .drop("factConf").groupBy(col("operator"))
+      .groupBy(col("operator"))
       .agg(collect_list(col("subject")).as("subjects"))
+    this.newFacts = spark.createDataFrame(spark.sparkContext.emptyRDD[Row], resultSchema)
     fpgrowth.setItemsCol("items").setMinSupport(0.02).setMinConfidence(0.5)
     val model = fpgrowth.fit(this.subjectOperatorMap.select(col("operators").as("items")))
 
@@ -59,14 +67,22 @@ object EWSRuleMiner {
       calculateEWSUsingLearning(struct(col("antecedent"), col("consequent"))))
       .withColumn("negation", explode(col("EWS"))).drop("EWS")
 
-    //this.subjectOperatorMap.write.mode(SaveMode.Overwrite).parquet(INPUT_DATASET_SUBJECT_OPERATOR_MAP)
+    newRules.foreach(r => this.generateFacts(r))
+    this.newFacts.coalesce(1).write.mode(SaveMode.Overwrite)
+      .option("header", "true")
+      .option("delimiter", "\t").csv(NEW_FACTS)
+
+    /* this.subjectOperatorMap.write.mode(SaveMode.Overwrite).parquet(INPUT_DATASET_SUBJECT_OPERATOR_MAP)
+    this.operatorSubjectMap.write.mode(SaveMode.Overwrite).parquet(INPUT_DATASET_OPERATOR_SUBJECT_MAP)
+
+    //  newRules.write.mode(SaveMode.Overwrite).parquet(EWS_RULES_PARQUET)
     newRules.withColumn("BodyPos", concat_ws(" ", col("antecedent")))
       .withColumn("BodyNeg", concat_ws(" ", col("negation")))
-      .withColumn("Head", concat_ws(" ",col("consequent")))
-      .drop("antecedent").drop("negation").drop("consequent")
-      .write.mode(SaveMode.Overwrite)
-      .option("header","true")
-      .option("delimiter", "\t").csv(EWS_RULES)
+      .withColumn("Head", concat_ws(" ", col("consequent")))
+      .drop("antecedent").drop("negation").drop("consequent").write.mode(SaveMode.Overwrite)
+      .option("header", "true")
+      .option("delimiter", "\t").csv(EWS_RULES)*/
+
     spark.stop
   }
 
@@ -96,7 +112,7 @@ object EWSRuleMiner {
     val ewsElements = subjectOperatorMap.join(headFacts, "subject").union(subjectOperatorMap.join(bodyFacts, "subject"))
       .withColumn("operator", explode(col("operators")))
       .drop("operators")
-      .drop("factConf")
+
       .join(operatorSubjectMap.join(EWS, "operator")
         .drop("EWS")
         .withColumn("subject2", explode(col("subjects")))
@@ -108,7 +124,7 @@ object EWSRuleMiner {
     val bodyElements = subjectOperatorMap.join(bodyFacts, "subject")
       .withColumn("operator", explode(col("operators")))
       .drop("operators")
-      .drop("factConf")
+
       .join(operatorSubjectMap.join(EWS, "operator")
         .drop("EWS")
         .withColumn("subject2", explode(col("subjects")))
@@ -136,14 +152,14 @@ object EWSRuleMiner {
     val differenceBodyandHead = bodyFacts.except(headFacts)
 
     val EWS = differenceBodyandHead.join(operatorSubjectMap.withColumn("subject", explode(col("subjects"))), "subject")
-      .drop("factConf")
+
       .drop("subjects")
       .select(col("operator"))
 
     val ewsElements = subjectOperatorMap.join(headFacts, "subject").union(subjectOperatorMap.join(bodyFacts, "subject"))
       .withColumn("operator", explode(col("operators")))
       .drop("operators")
-      .drop("factConf")
+
       .join(operatorSubjectMap.join(EWS, "operator")
         .drop("EWS")
         .withColumn("subject2", explode(col("subjects")))
@@ -156,7 +172,7 @@ object EWSRuleMiner {
     val bodyElements = subjectOperatorMap.join(bodyFacts, "subject")
       .withColumn("operator", explode(col("operators")))
       .drop("operators")
-      .drop("factConf")
+
       .join(operatorSubjectMap.join(EWS, "operator")
         .drop("EWS")
         .withColumn("subject2", explode(col("subjects")))
@@ -171,4 +187,27 @@ object EWSRuleMiner {
       .drop(col("denominator"))
       .rdd.map(r => r.getString(0)).collect().toList
   })
+
+  def generateFacts(rule: Row): Unit = {
+    val body = rule.getSeq(0)
+    val head = rule.getSeq[String](1)(0)
+    val ele = head.replaceAll("<", "").replaceAll(">", "").split(",")
+    val confidence = rule.getDouble(2)
+    val negation = rule.getString(3)
+
+    val resultFacts = operatorSubjectMap.select(col("subjects"))
+      .where(col("operator").isin(body: _*))
+      .withColumn("subject", explode(col("subjects")))
+      .drop("subjects")
+      .intersect(subjectOperatorMap.select(col("subject"))
+        .where(array_contains(col("operators"), negation)))
+      .withColumn("conf", lit(confidence))
+      .withColumn("p", lit(ele(0)))
+      .withColumn("o", lit(ele(1)))
+      .withColumnRenamed("subject", "s")
+
+    this.newFacts = this.newFacts.union(resultFacts
+      .select("conf", "s", "p", "o"))
+
+  }
 }

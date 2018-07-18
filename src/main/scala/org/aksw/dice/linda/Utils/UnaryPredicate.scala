@@ -22,4 +22,5 @@ class UnaryPredicate {
   override def toString(): String = {
     "<" + this.predicate + "," + this.obj + ">"
   }
+
 }

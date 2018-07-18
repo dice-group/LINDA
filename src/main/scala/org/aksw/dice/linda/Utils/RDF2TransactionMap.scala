@@ -14,7 +14,6 @@ object RDF2TransactionMap {
 
   def readFromDF(kb: DataFrame) {
     read = kb.rdd.groupBy(r => r.getString(0))
-    //TODO: Change the mapping to Dataset instead of RDD.
     this.subject2Operator = read.map(r => (r._1, createUnaryPredicate(r._2)))
   }
 
