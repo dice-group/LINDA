@@ -20,7 +20,7 @@ object DTParser {
         stack.append(lines(0).trim())
       } else if (lines(0).contains("Predict")) {
         result.append(stack.toList :+ lines(0).replace(")", "").trim())
-        if (stack(stack.length - 1).contains("Else"))
+        if ((stack.length != 0) && (stack(stack.length - 1).contains("Else")))
           stack.remove(stack.length - 1)
       } else if (lines(0).contains("Else")) {
         stack.remove(stack.length - 1)
@@ -29,7 +29,7 @@ object DTParser {
       lines = lines.tail
     }
     result.toList.filter(r => !r(r.size - 1).contains("Predict: 0.0")).map(r =>
-    parserLine(r, id))
+      parserLine(r, id))
   }
   def parserLine(
     line: List[String],

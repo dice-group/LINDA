@@ -67,12 +67,13 @@ object EWSRuleMiner {
       calculateEWSUsingLearning(struct(col("antecedent"), col("consequent"))))
       .withColumn("negation", explode(col("EWS"))).drop("EWS")
 
-    newRules.foreach(r => this.generateFacts(r))
-    this.newFacts.coalesce(1).write.mode(SaveMode.Overwrite)
-      .option("header", "true")
-      .option("delimiter", "\t").csv(NEW_FACTS)
+    newRules.limit(10).foreach(r => this.generateFacts(r))
+    this.newFacts.select(col("conf"), concat(lit("<"), col("s"), lit(">"), lit(" "), lit("<"), col("p"), lit(">"), lit(" "), lit("<"), col("o"), lit(">")))
+      .coalesce(1).write.mode(SaveMode.Overwrite)
+      .option("header", "false")
+      .option("delimiter", "\t").csv(HDFS_MASTER + "kunal/resultfacts.csv")
 
-    /* this.subjectOperatorMap.write.mode(SaveMode.Overwrite).parquet(INPUT_DATASET_SUBJECT_OPERATOR_MAP)
+    /*this.subjectOperatorMap.write.mode(SaveMode.Overwrite).parquet(INPUT_DATASET_SUBJECT_OPERATOR_MAP)
     this.operatorSubjectMap.write.mode(SaveMode.Overwrite).parquet(INPUT_DATASET_OPERATOR_SUBJECT_MAP)
 
     //  newRules.write.mode(SaveMode.Overwrite).parquet(EWS_RULES_PARQUET)
@@ -87,7 +88,8 @@ object EWSRuleMiner {
   }
 
   def calculateEWSUsingLearning = udf((rule: Row) => {
-    val head = rule.getSeq(1)
+    val head = rule
+      .getSeq(1)
     val body = rule.getSeq(0)
     fpgrowth.setMinConfidence(0.0).setMinSupport(0.01).setItemsCol("patterns")
 

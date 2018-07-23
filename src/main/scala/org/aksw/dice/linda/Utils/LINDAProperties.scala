@@ -6,7 +6,8 @@ object LINDAProperties {
    */
   //TODO: Add Other datasets
   final val DATASET_NAME = "rdf"
-  final val INPUT_DATASET = "Data/rdf.nt"
+  final val HDFS_MASTER = "hdfs://localhost:54310/"
+  final val INPUT_DATASET = HDFS_MASTER + "kunal/rdf.nt"
   final val INPUT_DATASET_SUBJECT_OPERATOR_MAP = "Data/" + DATASET_NAME + "/Maps/SubjectOperatorMap/parquet"
 
   final val OPERATOR_ID_MAP = "Data/" + DATASET_NAME + "/Maps/OperatorId/parquet"
@@ -17,15 +18,13 @@ object LINDAProperties {
   /*
    * LINDA CONFIGS
    */
-  final val NEW_FACTS = "Data/EWSAlgo/" + DATASET_NAME + "/NewFacts"
-
   final val EWS_RULES = "Data/EWSAlgo/" + DATASET_NAME + "/Rules/CSV"
   final val EWS_RULES_PARQUET = "Data/EWSAlgo/" + DATASET_NAME + "/Rules/Parquet"
   final val DT_RULES = "Data/DTAlgo/" + DATASET_NAME + "/Rules/CSV"
   final val DT_RULES_PARQUET = "Data/DTAlgo/" + DATASET_NAME + "/Rules/Parquet"
   final val RESULT_KB_EWS = "Data/EWSAlgo/" + DATASET_NAME + "/New Dataset/"
   final val RESULT_KB_DT = "Data/DTAlgo/" + DATASET_NAME + "/New Dataset/"
-  final val LIBSVM_DATASET = "Data/DTAlgo/LIBSVMData/" + DATASET_NAME + "/"
+  final val LIBSVM_DATASET = HDFS_MASTER + "kunal/DTAlgo/LIBSVMData/"
 
   /*
    * SPARK CONFIGS
