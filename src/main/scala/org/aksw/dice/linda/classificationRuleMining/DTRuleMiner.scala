@@ -20,6 +20,10 @@ import org.apache.hadoop.fs.FileSystem
 
 object DTRuleMiner {
   var finalrules: DataFrame = _
+  var subjectOperatorMap: DataFrame = _
+  var operatorSubjectMap: DataFrame = _
+  var newFacts: DataFrame = _
+
   val resultSchema = StructType(
     StructField("conf", IntegerType, true) ::
       StructField("s", StringType, true) ::
@@ -27,7 +31,6 @@ object DTRuleMiner {
       StructField("o", StringType, true) :: Nil)
 
   val ruleSchema = StructType(
-
     StructField("body", ArrayType(StringType, true), true) ::
       StructField("negative", ArrayType(StringType, true), true) ::
       StructField("head", ArrayType(StringType, true), true) ::
@@ -38,7 +41,6 @@ object DTRuleMiner {
     val spark = SparkSession.builder
       .master(SPARK_SYSTEM)
       .config(SERIALIZER, KYRO_SERIALIZER)
-      .config(WAREHOUSE, DIRECTORY)
       .appName(APP_DT_MINER)
       .getOrCreate()
 
@@ -113,6 +115,28 @@ object DTRuleMiner {
 
     this.finalrules.show(false)
     spark.stop
+
+  }
+  def generateFacts(rule: Row): Unit = {
+    val body = rule.getSeq(0)
+    val head = rule.getSeq[String](1)(0)
+    val ele = head.replaceAll("<", "").replaceAll(">", "").split(",")
+    val confidence = rule.getDouble(2)
+    val negation = rule.getString(3)
+
+    val resultFacts = operatorSubjectMap.select(col("subjects"))
+      .where(col("operator").isin(body: _*))
+      .withColumn("subject", explode(col("subjects")))
+      .drop("subjects")
+      .intersect(subjectOperatorMap.select(col("subject"))
+        .where(array_contains(col("operators"), negation)))
+      .withColumn("conf", lit(confidence))
+      .withColumn("p", lit(ele(0)))
+      .withColumn("o", lit(ele(1)))
+      .withColumnRenamed("subject", "s")
+
+    this.newFacts = this.newFacts.union(resultFacts
+      .select("conf", "s", "p", "o"))
 
   }
 

@@ -45,7 +45,6 @@ object EWSRuleMiner {
     val spark = SparkSession.builder
       .master(SPARK_SYSTEM)
       .config(SERIALIZER, KYRO_SERIALIZER)
-      .config(WAREHOUSE, DIRECTORY)
       .appName(APP_EWS_MINER)
       .getOrCreate()
     val context = spark.sparkContext
@@ -71,18 +70,19 @@ object EWSRuleMiner {
     this.newFacts.select(col("conf"), concat(lit("<"), col("s"), lit(">"), lit(" "), lit("<"), col("p"), lit(">"), lit(" "), lit("<"), col("o"), lit(">")))
       .coalesce(1).write.mode(SaveMode.Overwrite)
       .option("header", "false")
-      .option("delimiter", "\t").csv(HDFS_MASTER + "kunal/resultfacts.csv")
+      .option("delimiter", "\t").csv(FACTS_KB_EWS)
 
-    /*this.subjectOperatorMap.write.mode(SaveMode.Overwrite).parquet(INPUT_DATASET_SUBJECT_OPERATOR_MAP)
+    this.subjectOperatorMap.write.mode(SaveMode.Overwrite).parquet(INPUT_DATASET_SUBJECT_OPERATOR_MAP)
     this.operatorSubjectMap.write.mode(SaveMode.Overwrite).parquet(INPUT_DATASET_OPERATOR_SUBJECT_MAP)
 
     //  newRules.write.mode(SaveMode.Overwrite).parquet(EWS_RULES_PARQUET)
-    newRules.withColumn("BodyPos", concat_ws(" ", col("antecedent")))
-      .withColumn("BodyNeg", concat_ws(" ", col("negation")))
-      .withColumn("Head", concat_ws(" ", col("consequent")))
-      .drop("antecedent").drop("negation").drop("consequent").write.mode(SaveMode.Overwrite)
+    newRules.withColumn("body", concat_ws(" ", col("antecedent")))
+      .withColumn("negative", concat_ws(" ", col("negation")))
+      .withColumn("head", concat_ws(" ", col("consequent")))
+      .drop("antecedent").drop("negation").drop("consequent")
+      .write.mode(SaveMode.Overwrite)
       .option("header", "true")
-      .option("delimiter", "\t").csv(EWS_RULES)*/
+      .option("delimiter", "\t").csv(EWS_RULES_CSV)
 
     spark.stop
   }
@@ -140,7 +140,6 @@ object EWSRuleMiner {
       .drop(col("numerator"))
       .drop(col("denominator"))
       .rdd.map(r => r.getString(0)).collect().toList
-
   })
 
   def calculateEWSUsingSetOperations = udf((rule: Row) => {

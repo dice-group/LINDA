@@ -6,25 +6,25 @@ object LINDAProperties {
    */
   //TODO: Add Other datasets
   final val DATASET_NAME = "rdf"
-  final val HDFS_MASTER = "hdfs://localhost:54310/"
-  final val INPUT_DATASET = HDFS_MASTER + "kunal/rdf.nt"
-  final val INPUT_DATASET_SUBJECT_OPERATOR_MAP = "Data/" + DATASET_NAME + "/Maps/SubjectOperatorMap/parquet"
+  final val HDFS_MASTER = "hdfs://localhost:54310/kunal/"
+  final val INPUT_DATASET = HDFS_MASTER + DATASET_NAME + ".nt"
 
-  final val OPERATOR_ID_MAP = "Data/" + DATASET_NAME + "/Maps/OperatorId/parquet"
-  final val OPERATORID_MAP_JSON = "Data/" + DATASET_NAME + "/Maps/OperatorId/json"
-  final val INPUT_DATASET_OPERATOR_SUBJECT_MAP = "Data/" + DATASET_NAME + "/Maps/OperatorSubjectMap/parquet"
-  final val INPUT_DATASET_OPERATOR_SUBJECT = "Data/" + DATASET_NAME + "/Maps/OperatorSubjectMap/parquet"
+  final val INPUT_DATASET_SUBJECT_OPERATOR_MAP = HDFS_MASTER + DATASET_NAME + "/Maps/SubjectOperatorMap/"
+  final val OPERATOR_ID_MAP = HDFS_MASTER + DATASET_NAME + "/Maps/OperatorId/parquet"
+  final val INPUT_DATASET_OPERATOR_SUBJECT_MAP = HDFS_MASTER + DATASET_NAME + "/Maps/OperatorSubjectMap/parquet"
 
   /*
    * LINDA CONFIGS
    */
-  final val EWS_RULES = "Data/EWSAlgo/" + DATASET_NAME + "/Rules/CSV"
-  final val EWS_RULES_PARQUET = "Data/EWSAlgo/" + DATASET_NAME + "/Rules/Parquet"
-  final val DT_RULES = "Data/DTAlgo/" + DATASET_NAME + "/Rules/CSV"
-  final val DT_RULES_PARQUET = "Data/DTAlgo/" + DATASET_NAME + "/Rules/Parquet"
-  final val RESULT_KB_EWS = "Data/EWSAlgo/" + DATASET_NAME + "/New Dataset/"
-  final val RESULT_KB_DT = "Data/DTAlgo/" + DATASET_NAME + "/New Dataset/"
-  final val LIBSVM_DATASET = HDFS_MASTER + "kunal/DTAlgo/LIBSVMData/"
+  final val EWS_RULES_CSV = HDFS_MASTER + "EWS/" + DATASET_NAME + "/Rules/CSV"
+  final val EWS_RULES_PARQUET = HDFS_MASTER + "EWSAlgo/" + DATASET_NAME + "/Rules/Parquet"
+  final val FACTS_KB_EWS = HDFS_MASTER + "EWS/" + DATASET_NAME + "/New Facts/EWSresult.csv"
+
+  final val DT_RULES = HDFS_MASTER + "kunal/DTAlgo/" + DATASET_NAME + "/Rules/CSV"
+  final val DT_RULES_PARQUET = HDFS_MASTER + "kunal/DTAlgo/" + DATASET_NAME + "/Rules/Parquet"
+  final val FACTS_KB_DT = "Data/DTAlgo/" + DATASET_NAME + "/New Dataset/"
+  final val LIBSVM_DATASET = HDFS_MASTER + "DTAlgo/LIBSVMData/"
+  final val DT_INPUT_DATASET = HDFS_MASTER + "DTAlgo/FinalData/"
 
   /*
    * SPARK CONFIGS
@@ -33,7 +33,7 @@ object LINDAProperties {
   final val SERIALIZER = "spark.serializer"
   final val KYRO_SERIALIZER = "org.apache.spark.serializer.KryoSerializer"
   final val WAREHOUSE = "spark.sql.warehouse.dir"
-  final val DIRECTORY = "Users/Kunal/workspaceThesis/LINDA/"
+
   final val APP_DATASET_CREATER = "LINDA (Data Set Creater)"
   final val APP_FACT_GENERATOR = "LINDA  (Fact Generator)"
   final val APP_EWS_MINER = "LINDA  (EWS Miner)"
