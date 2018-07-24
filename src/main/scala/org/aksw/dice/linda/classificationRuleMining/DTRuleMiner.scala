@@ -44,11 +44,12 @@ object DTRuleMiner {
       .appName(APP_DT_MINER)
       .getOrCreate()
 
+    this.operatorSubjectMap = spark.read.format("parquet").load(INPUT_DATASET_OPERATOR_SUBJECT_MAP)
+    this.newFacts = spark.createDataFrame(spark.sparkContext.emptyRDD[Row], resultSchema)
     this.operator2Id = spark.read.format("parquet").load(OPERATOR_ID_MAP)
     this.finalrules = spark.createDataFrame(spark.sparkContext.emptyRDD[Row], ruleSchema)
-    val path = new Path(HDFS_MASTER + "/kunal/DTAlgo/FinalData/")
+    val path = new Path(DT_INPUT_DATASET)
     val files = path.getFileSystem(new Configuration()).listFiles(path, true)
-
     val getBody = udf((bodyInt: Seq[Int]) => {
       {
         this.operator2Id.select("operator")
@@ -56,7 +57,6 @@ object DTRuleMiner {
           .rdd.map(r => r.getString(0)).collect().toList
       }
     })
-
     val getHead = udf((headInt: Int) => {
       {
         this.operator2Id.select("operator")
@@ -65,9 +65,7 @@ object DTRuleMiner {
       }
     })
     while (files.hasNext()) {
-
       val data = spark.read.format("libsvm").load(files.next().getPath.toString())
-
       val labelIndexer = new StringIndexer()
         .setInputCol("label")
         .setOutputCol("indexedLabel")
@@ -77,24 +75,18 @@ object DTRuleMiner {
         .setOutputCol("indexedFeatures")
         .fit(data)
       val Array(trainingData, testData) = data.randomSplit(Array(0.6, 0.4))
-      //Train
       val dt = new DecisionTreeClassifier()
         .setLabelCol("indexedLabel")
         .setFeaturesCol("indexedFeatures")
-
-      // Convert indexed labels back to original labels.
       val labelConverter = new IndexToString()
         .setInputCol("prediction")
         .setOutputCol("predictedLabel")
         .setLabels(labelIndexer.labels)
-      // Chain indexers and tree in a Pipeline.
       val pipeline = new Pipeline()
         .setStages(Array(labelIndexer, featureIndexer, dt, labelConverter))
-      // Train model. This also runs the indexers.
       val model = pipeline.fit(trainingData)
       // Make predictions.
       val predictions = model.transform(testData)
-      // Select (prediction, true label) and compute test error.
       val evaluator = new MulticlassClassificationEvaluator()
         .setLabelCol("indexedLabel")
         .setPredictionCol("prediction")
@@ -109,34 +101,48 @@ object DTRuleMiner {
         .drop("antecedant")
         .drop("negation")
         .drop("consequent")
-
       this.finalrules = this.finalrules.union(kk)
     }
-
-    this.finalrules.show(false)
+    this.finalrules.foreach(rule => generateFacts(rule))
+    this.newFacts.select(col("conf"), concat(lit("<"), col("s"), lit(">"), lit(" "), lit("<"), col("p"), lit(">"), lit(" "), lit("<"), col("o"), lit(">")))
+      .coalesce(1).write.mode(SaveMode.Overwrite)
+      .option("header", "false")
+      .option("delimiter", "\t").csv(FACTS_KB_DT)
+    this.finalrules.write.mode(SaveMode.Overwrite).json(DT_RULES_JSON)
     spark.stop
 
   }
   def generateFacts(rule: Row): Unit = {
     val body = rule.getSeq(0)
-    val head = rule.getSeq[String](1)(0)
+    val negation = rule.getSeq(1)
+    val head = rule.getSeq[String](2)(0)
     val ele = head.replaceAll("<", "").replaceAll(">", "").split(",")
-    val confidence = rule.getDouble(2)
-    val negation = rule.getString(3)
+    val confidence = rule.getDouble(3)
+    if (negation.size == 0) {
+      this.newFacts = this.newFacts.
+        union(operatorSubjectMap.select(col("subjects"))
+          .where(col("operator").isin(body: _*))
+          .withColumn("subject", explode(col("subjects")))
+          .drop("subjects")
+          .withColumn("conf", lit(confidence))
+          .withColumn("p", lit(ele(0)))
+          .withColumn("o", lit(ele(1)))
+          .withColumnRenamed("subject", "s")
+          .select("conf", "s", "p", "o"))
+    } else {
+      this.newFacts = this.newFacts.
+        union(operatorSubjectMap.select(col("subjects"))
+          .where(col("operator").isin(body: _*)
+            and col("operator").isin(negation: _*))
+          .withColumn("subject", explode(col("subjects")))
+          .drop("subjects")
+          .withColumn("conf", lit(confidence))
+          .withColumn("p", lit(ele(0)))
+          .withColumn("o", lit(ele(1)))
+          .withColumnRenamed("subject", "s")
+          .select("conf", "s", "p", "o"))
 
-    val resultFacts = operatorSubjectMap.select(col("subjects"))
-      .where(col("operator").isin(body: _*))
-      .withColumn("subject", explode(col("subjects")))
-      .drop("subjects")
-      .intersect(subjectOperatorMap.select(col("subject"))
-        .where(array_contains(col("operators"), negation)))
-      .withColumn("conf", lit(confidence))
-      .withColumn("p", lit(ele(0)))
-      .withColumn("o", lit(ele(1)))
-      .withColumnRenamed("subject", "s")
-
-    this.newFacts = this.newFacts.union(resultFacts
-      .select("conf", "s", "p", "o"))
+    }
 
   }
 

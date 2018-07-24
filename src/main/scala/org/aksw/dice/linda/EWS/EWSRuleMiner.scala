@@ -17,9 +17,7 @@ import org.aksw.dice.linda.Utils.LINDAProperties._
 object EWSRuleMiner {
 
   private val logger = LoggerFactory.getLogger(this.getClass.getName)
-  val tsvWithHeaderOptions: Map[String, String] = Map(
-    ("delimiter", "\t"),
-    ("header", "true"))
+
   var subjectOperatorMap: DataFrame = _
   var operatorSubjectMap: DataFrame = _
   var transactionsDF: DataFrame = _
@@ -72,17 +70,14 @@ object EWSRuleMiner {
       .option("header", "false")
       .option("delimiter", "\t").csv(FACTS_KB_EWS)
 
-    this.subjectOperatorMap.write.mode(SaveMode.Overwrite).parquet(INPUT_DATASET_SUBJECT_OPERATOR_MAP)
+    //this.subjectOperatorMap.write.mode(SaveMode.Overwrite).parquet(INPUT_DATASET_SUBJECT_OPERATOR_MAP)
     this.operatorSubjectMap.write.mode(SaveMode.Overwrite).parquet(INPUT_DATASET_OPERATOR_SUBJECT_MAP)
 
     //  newRules.write.mode(SaveMode.Overwrite).parquet(EWS_RULES_PARQUET)
-    newRules.withColumn("body", concat_ws(" ", col("antecedent")))
-      .withColumn("negative", concat_ws(" ", col("negation")))
-      .withColumn("head", concat_ws(" ", col("consequent")))
-      .drop("antecedent").drop("negation").drop("consequent")
-      .write.mode(SaveMode.Overwrite)
-      .option("header", "true")
-      .option("delimiter", "\t").csv(EWS_RULES_CSV)
+    newRules.withColumnRenamed("antecedent", "body")
+      .withColumnRenamed("negation", "negative")
+      .withColumnRenamed("consequent", "head")
+      .write.mode(SaveMode.Overwrite).json(EWS_RULES_JSON)
 
     spark.stop
   }
@@ -145,7 +140,6 @@ object EWSRuleMiner {
   def calculateEWSUsingSetOperations = udf((rule: Row) => {
     val head = rule.getSeq(1)
     val body = rule.getSeq(0)
-
     val bodyFacts = operatorSubjectMap.select(col("subjects"))
       .where(col("operator").isin(body: _*)).withColumn("subject", explode(col("subjects"))).drop("subjects")
     val headFacts = operatorSubjectMap.select(col("subjects"))
@@ -196,7 +190,7 @@ object EWSRuleMiner {
     val confidence = rule.getDouble(2)
     val negation = rule.getString(3)
 
-    val resultFacts = operatorSubjectMap.select(col("subjects"))
+    this.newFacts = this.newFacts.union(operatorSubjectMap.select(col("subjects"))
       .where(col("operator").isin(body: _*))
       .withColumn("subject", explode(col("subjects")))
       .drop("subjects")
@@ -206,8 +200,6 @@ object EWSRuleMiner {
       .withColumn("p", lit(ele(0)))
       .withColumn("o", lit(ele(1)))
       .withColumnRenamed("subject", "s")
-
-    this.newFacts = this.newFacts.union(resultFacts
       .select("conf", "s", "p", "o"))
 
   }
