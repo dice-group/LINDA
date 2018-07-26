@@ -4,10 +4,10 @@ object LINDAProperties {
   /*
    * DATASET CONFIGS
    */
-  // 172.18.160.17:54310
+  // 
   //TODO: Add Other datasets
-  final val DATASET_NAME = "rdf"
-  final val HDFS_MASTER = "hdfs://localhost:54310/kunal/"
+  final val DATASET_NAME = "freebase_mtr100_mte100-train"
+  final val HDFS_MASTER = "hdfs://172.18.160.17:54310/kunal/"
 
   final val INPUT_DATASET = HDFS_MASTER + DATASET_NAME + ".nt"
 
