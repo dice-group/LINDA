@@ -11,21 +11,21 @@ object LINDAProperties {
 
   final val INPUT_DATASET = HDFS_MASTER + DATASET_NAME + ".nt"
 
-  final val INPUT_DATASET_SUBJECT_OPERATOR_MAP = "Data/" + DATASET_NAME + "/Maps/SubjectOperatorMap/"
-  final val OPERATOR_ID_MAP = "Data/" + DATASET_NAME + "/Maps/OperatorId/parquet"
-  final val INPUT_DATASET_OPERATOR_SUBJECT_MAP = "Data/" + DATASET_NAME + "/Maps/OperatorSubjectMap/parquet"
+  final val INPUT_DATASET_SUBJECT_OPERATOR_MAP = "/data/home/KunalJha/LINDA" + DATASET_NAME + "/Maps/SubjectOperatorMap/"
+  final val OPERATOR_ID_MAP = "/data/home/KunalJha/LINDA" + DATASET_NAME + "/Maps/OperatorId/parquet"
+  final val INPUT_DATASET_OPERATOR_SUBJECT_MAP = "/data/home/KunalJha/LINDA" + DATASET_NAME + "/Maps/OperatorSubjectMap/parquet"
 
   /*
    * LINDA CONFIGS
    */
-  final val EWS_RULES_JSON = "Data/" + "EWS/" + DATASET_NAME + "/Rules/Json"
-  final val EWS_RULES_PARQUET = "Data/" + "EWS/" + DATASET_NAME + "/Rules/Parquet"
-  final val FACTS_KB_EWS = "Data/" + "EWS/" + DATASET_NAME + "/New Facts/EWSresult.csv"
-  final val DT_RULES_JSON = "Data/" + "DT/" + DATASET_NAME + "/Rules/Json"
-  final val DT_RULES_PARQUET = "Data/" + "DT/" + DATASET_NAME + "/Rules/Parquet"
-  final val FACTS_KB_DT = "Data/" + "DT/" + DATASET_NAME + "/New Facts/DTresult.csv"
-  final val LIBSVM_DATASET = "Data/" + "DTAlgo/LIBSVMData/"
-  final val DT_INPUT_DATASET = "Data/" + "DTAlgo/FinalData/"
+  final val EWS_RULES_JSON = "/data/home/KunalJha/LINDA" + "EWS/" + DATASET_NAME + "/Rules/Json"
+  final val EWS_RULES_PARQUET = "/data/home/KunalJha/LINDA" + "EWS/" + DATASET_NAME + "/Rules/Parquet"
+  final val FACTS_KB_EWS = "/data/home/KunalJha/LINDA" + "EWS/" + DATASET_NAME + "/New Facts/EWSresult.csv"
+  final val DT_RULES_JSON = "/data/home/KunalJha/LINDA" + "DT/" + DATASET_NAME + "/Rules/Json"
+  final val DT_RULES_PARQUET = "/data/home/KunalJha/LINDA" + "DT/" + DATASET_NAME + "/Rules/Parquet"
+  final val FACTS_KB_DT = "/data/home/KunalJha/LINDA" + "DT/" + DATASET_NAME + "/New Facts/DTresult.csv"
+  final val LIBSVM_DATASET = "/data/home/KunalJha/LINDA" + "DTAlgo/LIBSVMData/"
+  final val DT_INPUT_DATASET = "/data/home/KunalJha/LINDA" + "DTAlgo/FinalData/"
 
   /*
    * SPARK CONFIGS
