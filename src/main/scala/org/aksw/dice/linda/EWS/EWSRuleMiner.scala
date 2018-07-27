@@ -47,6 +47,8 @@ object EWSRuleMiner {
       .getOrCreate()
     val context = spark.sparkContext
     val triplesDF = spark.read.rdf(Lang.NTRIPLES)(INPUT_DATASET)
+    triplesDF.show(false)
+    /*
     RDF2TransactionMap.readFromDF(triplesDF)
     this.subjectOperatorMap = spark.createDataFrame(RDF2TransactionMap.subject2Operator
       .map(r => Row(r._1, r._2.map(a => a.toString()))), StructType(subjectOperatorMapSchema))
@@ -59,39 +61,31 @@ object EWSRuleMiner {
     fpgrowth.setItemsCol("items").setMinSupport(0.02).setMinConfidence(0.5)
     val model = fpgrowth.fit(this.subjectOperatorMap.select(col("operators").as("items")))
 
-    val newRules = model.associationRules.limit(5).withColumn(
-      "EWS",
-      calculateEWSUsingLearning(struct(col("antecedent"), col("consequent"))))
+    val newRules = model.associationRules.withColumn(
+      "EWS", calculateEWSUsingLearning(struct(col("antecedent"), col("consequent"))))
       .withColumn("negation", explode(col("EWS"))).drop("EWS")
 
-    newRules.limit(10).foreach(r => this.generateFacts(r))
+    newRules.foreach(r => this.generateFacts(r))
     this.newFacts.select(col("conf"), concat(lit("<"), col("s"), lit(">"), lit(" "), lit("<"), col("p"), lit(">"), lit(" "), lit("<"), col("o"), lit(">")))
       .coalesce(1).write.mode(SaveMode.Overwrite)
       .option("header", "false")
       .option("delimiter", "\t").csv(FACTS_KB_EWS)
-
-    //this.subjectOperatorMap.write.mode(SaveMode.Overwrite).parquet(INPUT_DATASET_SUBJECT_OPERATOR_MAP)
     this.operatorSubjectMap.write.mode(SaveMode.Overwrite).parquet(INPUT_DATASET_OPERATOR_SUBJECT_MAP)
-
-    //  newRules.write.mode(SaveMode.Overwrite).parquet(EWS_RULES_PARQUET)
     newRules.withColumnRenamed("antecedent", "body")
       .withColumnRenamed("negation", "negative")
       .withColumnRenamed("consequent", "head")
-      .write.mode(SaveMode.Overwrite).json(EWS_RULES_JSON)
+      .write.mode(SaveMode.Overwrite).json(EWS_RULES_JSON)*/
 
     spark.stop
   }
 
   def calculateEWSUsingLearning = udf((rule: Row) => {
-    val head = rule
-      .getSeq(1)
+    val head = rule.getSeq(1)
     val body = rule.getSeq(0)
     fpgrowth.setMinConfidence(0.0).setMinSupport(0.01).setItemsCol("patterns")
-
     def filterBody = udf((list: mutable.WrappedArray[String]) => {
       list.filter(!body.contains(_))
     })
-
     val bodyFacts = operatorSubjectMap.select(col("subjects"))
       .where(col("operator").isin(body: _*)).withColumn("subject", explode(col("subjects"))).drop("subjects")
     val headFacts = operatorSubjectMap.select(col("subjects"))
