@@ -25,7 +25,7 @@ object DatasetWriter {
   lazy val subjectIdSchema = List(StructField("subject", StringType, true))
   var numberofOperators: Int = 0
   val spark = SparkSession.builder
-    .master(SPARK_SYSTEM_LOCAL)
+    .master(SPARK_SYSTEM)
     .config(SERIALIZER, KYRO_SERIALIZER)
     .appName(APP_DATASET_CREATER)
     .getOrCreate()

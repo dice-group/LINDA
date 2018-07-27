@@ -39,7 +39,7 @@ object DTRuleMiner {
   var operator2Id: DataFrame = _
   def main(args: Array[String]) = {
     val spark = SparkSession.builder
-      .master(SPARK_SYSTEM_LOCAL)
+      .master(SPARK_SYSTEM)
       .config(SERIALIZER, KYRO_SERIALIZER)
       .appName(APP_DT_MINER)
       .getOrCreate()
