@@ -59,7 +59,8 @@ object EWSRuleMiner {
     this.newFacts = spark.createDataFrame(spark.sparkContext.emptyRDD[Row], resultSchema)
     fpgrowth.setItemsCol("items").setMinSupport(0.01).setMinConfidence(0.1)
     val model = fpgrowth.fit(this.subjectOperatorMap.select(col("operators").as("items")))
-    val newRules = model.associationRules.filter(col("consequent").isNotNull).withColumn(
+  
+    val newRules = model.associationRules.filter(""" size(consequent) != 0 """).withColumn(
       "EWS", calculateEWSUsingLearning(struct(col("antecedent"), col("consequent"))))
       .withColumn("negation", explode(col("EWS"))).drop("EWS")
     newRules.show(false)
