@@ -18,7 +18,7 @@ import org.apache.hadoop.fs.Path
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.FileSystem
 
-object DTRuleMiner {
+/*object DTRuleMiner {
   var finalrules: DataFrame = _
   var subjectOperatorMap: DataFrame = _
   var operatorSubjectMap: DataFrame = _
@@ -146,4 +146,4 @@ object DTRuleMiner {
 
   }
 
-}
+}*/

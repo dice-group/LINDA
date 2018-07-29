@@ -55,12 +55,14 @@ object EWSRuleMiner {
       .withColumn("operator", explode(col("operators"))).drop("operators")
       .groupBy(col("operator"))
       .agg(collect_list(col("subject")).as("subjects"))
+
     this.newFacts = spark.createDataFrame(spark.sparkContext.emptyRDD[Row], resultSchema)
-    fpgrowth.setItemsCol("items").setMinSupport(0.02).setMinConfidence(0.5)
+    fpgrowth.setItemsCol("items").setMinSupport(0.01).setMinConfidence(0.1)
     val model = fpgrowth.fit(this.subjectOperatorMap.select(col("operators").as("items")))
-    val newRules = model.associationRules.filter(col("consequent") !== null).withColumn(
+    val newRules = model.associationRules.filter(col("consequent").isNotNull).withColumn(
       "EWS", calculateEWSUsingLearning(struct(col("antecedent"), col("consequent"))))
       .withColumn("negation", explode(col("EWS"))).drop("EWS")
+    newRules.show(false)
     newRules.foreach(r => this.generateFacts(r))
     this.newFacts.select(col("conf"), concat(lit("<"), col("s"), lit(">"), lit(" "), lit("<"), col("p"), lit(">"), lit(" "), lit("<"), col("o"), lit(">")))
       .coalesce(1).write.mode(SaveMode.Overwrite)
@@ -71,7 +73,6 @@ object EWSRuleMiner {
       .withColumnRenamed("negation", "negative")
       .withColumnRenamed("consequent", "head")
       .write.mode(SaveMode.Overwrite).json(EWS_RULES_JSON)
-
     spark.stop
   }
 
