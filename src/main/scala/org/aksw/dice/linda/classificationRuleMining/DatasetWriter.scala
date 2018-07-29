@@ -13,7 +13,7 @@ import org.apache.spark.ml.linalg.Vectors
 
 import org.apache.spark.sql.expressions.Window
 import org.aksw.dice.linda.Utils.LINDAProperties._
-/*
+
 object DatasetWriter {
   var subjectOperatorMap: DataFrame = _
 
@@ -76,4 +76,4 @@ object DatasetWriter {
 
   }
 
-}*/
+}
