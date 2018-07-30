@@ -9,7 +9,6 @@ object LINDAProperties {
   final val DATASET_NAME = "DBLPL3S"
   final val HDFS_MASTER = "hdfs://172.18.160.17:54310/KunalJha/"
 
-  
   final val INPUT_DATASET = HDFS_MASTER + DATASET_NAME + ".nt"
 
   final val INPUT_DATASET_SUBJECT_OPERATOR_MAP = HDFS_MASTER + DATASET_NAME + "/Maps/SubjectOperatorMap/"
@@ -31,8 +30,8 @@ object LINDAProperties {
   /*
    * SPARK CONFIGS
    */
-  final val SPARK_SYSTEM = "local[*]"
-  //final val SPARK_SYSTEM = "spark://172.18.160.16:3090"
+  //final val SPARK_SYSTEM = "local[*]"
+  final val SPARK_SYSTEM = "spark://172.18.160.16:3090"
   final val SERIALIZER = "spark.serializer"
   final val KYRO_SERIALIZER = "org.apache.spark.serializer.KryoSerializer"
   final val WAREHOUSE = "spark.sql.warehouse.dir"

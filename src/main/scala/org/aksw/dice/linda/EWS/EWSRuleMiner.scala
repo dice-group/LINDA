@@ -57,7 +57,9 @@ object EWSRuleMiner {
     fpgrowth.setItemsCol("items").setMinSupport(0.01).setMinConfidence(0.1)
     val model = fpgrowth.fit(subjectOperatorMap.select(col("operators").as("items")))
 
-    val newRules = model.associationRules.filter(removeEmpty(col("consequent"))).withColumn("body", explode(col("antecedent")))
+    val hornRules = model.associationRules
+      .filter(removeEmpty(col("consequent")))
+      .withColumn("body", explode(col("antecedent")))
       .withColumn("head", explode(col("consequent")))
     val setDiff = udf((head: mutable.WrappedArray[String], body: mutable.WrappedArray[String]) => {
       body.diff(head)
@@ -66,149 +68,72 @@ object EWSRuleMiner {
     def filterBody = udf((list: mutable.WrappedArray[String], body: mutable.WrappedArray[String]) => {
       list.intersect(body).size != 0
     })
-    val rulesWithFacts = newRules
-      .join(operatorSubjectMap, newRules("body") === operatorSubjectMap("operator"))
+
+    val rulesWithFacts = hornRules
+      .join(operatorSubjectMap, hornRules("body") === operatorSubjectMap("operator"))
       .withColumnRenamed("subjects", "bodySet")
       .select("antecedent", "consequent", "bodySet")
-      .join(newRules
-        .join(operatorSubjectMap, newRules("head") === operatorSubjectMap("operator"))
+      .join(hornRules
+        .join(operatorSubjectMap, hornRules("head") === operatorSubjectMap("operator"))
         .withColumnRenamed("subjects", "headSet")
-        .select("antecedent", "consequent", "headSet"), Seq("antecedent", "consequent"))
-      .withColumn("setDiff", setDiff(col("headSet"), col("bodySet")))
-      .filter(removeEmpty(col("setDiff")))
+        .select("antecedent", "consequent", "headSet"), Seq("antecedent", "consequent")) // Fact List
+      .withColumn("setDiff", setDiff(col("headSet"), col("bodySet"))) // Difference in facts between body and head
+      .filter(removeEmpty(col("setDiff"))) // Not consider rules which don't have this difference
       .withColumn("subject", explode(col("setDiff")))
       .join(subjectOperatorMap, "subject")
-      .filter(filterBody(col("operators"), col("antecedent")))
-      .drop("headSet")
+      .filter(filterBody(col("operators"), col("antecedent"))) // Get operators corresponding to the
+      .withColumn("operator", explode(col("operators")))
+      .drop("operators")
       .drop("subject")
       .drop("setdiff")
-      .drop("bodySet")
 
-    rulesWithFacts.show(false)
-    /*
-.withColumn("operator", explode(col("patterns")))
-      .groupBy("antecedent", "consequent")
-      .agg(count("operator").as("cnt"))
-   .withColumn(
-      "EWS", calculateEWSUsingLearning(struct(col("antecedent"), col("consequent"))))
-      .withColumn("negation", explode(col("EWS"))).drop("EWS")
-    newRules.show(false)
-    newRules.foreach(r => generateFacts(r))
-    this.newFacts.select(col("conf"), concat(lit("<"), col("s"), lit(">"), lit(" "), lit("<"), col("p"), lit(">"), lit(" "), lit("<"), col("o"), lit(">")))
-      .coalesce(1).write.mode(SaveMode.Overwrite)
+    val operatorSupport = rulesWithFacts.groupBy("antecedent", "consequent", "operator") // get operator support
+      .agg(count("operator").as("support"))
+      .filter(col("support") >= 0.2 * subjectOperatorMap.count())
+    def getRuleSupport = udf((head: mutable.WrappedArray[String], body: mutable.WrappedArray[String], neg: mutable.WrappedArray[String]) => {
+      head.intersect(body).intersect(neg).size
+    })
+    def getBodySupport = udf((body: mutable.WrappedArray[String], neg: mutable.WrappedArray[String]) => {
+      body.intersect(neg).size
+    })
+
+    def getFacts = udf((body: mutable.WrappedArray[String], neg: mutable.WrappedArray[String]) => {
+      body.intersect(neg)
+    })
+    def cleanString = udf((body: mutable.WrappedArray[String]) => {
+      body.mkString("").replace("[", "").replace("]", "")
+    })
+    val EWSWithFacts = rulesWithFacts
+      .join(operatorSupport, Seq("antecedent", "consequent", "operator"))
+      .join(operatorSubjectMap, "operator")
+      .withColumnRenamed("subjects", "operatorSet")
+      .withColumn("RuleSupport", getRuleSupport(col("headSet"), col("bodySet"), col("operatorSet")))
+      .withColumn("BodySupport", getBodySupport(col("bodySet"), col("operatorSet")))
+      .withColumn("confidence", col("RuleSupport").divide(col("BodySupport")))
+      .filter(col("confidence") >= 0.2)
+      .withColumn("newFacts", getFacts(col("bodySet"), col("operatorSet")))
+
+    val facts = EWSWithFacts
+      .select(col("consequent"), col("newFacts"), col("confidence"))
+      .withColumn("s", explode(col("newFacts")))
+      .withColumn("po", explode(col("consequent")))
+      .withColumn("pred", cleanString(col("consequent")))
+      .withColumn("_tmp", split(col("pred"), "\\,"))
+      .select(
+        col("confidence"),
+        concat(lit("<"), col("s"), lit(">")),
+        col("_tmp").getItem(0).as("p"),
+        col("_tmp").getItem(1).as("o"))
+
+    EWSWithFacts.select(col("antecedent"), col("operator").as("negation"),
+      col("consequent"), col("confidence"))
+      .write.mode(SaveMode.Overwrite).json(EWS_RULES_JSON)
+
+    facts.coalesce(1).write.mode(SaveMode.Overwrite)
       .option("header", "false")
       .option("delimiter", "\t").csv(FACTS_KB_EWS)
-    operatorSubjectMap.write.mode(SaveMode.Overwrite).parquet(INPUT_DATASET_OPERATOR_SUBJECT_MAP)
-    newRules.withColumnRenamed("antecedent", "body")
-      .withColumnRenamed("negation", "negative")
-      .withColumnRenamed("consequent", "head")
-      .write.mode(SaveMode.Overwrite).json(EWS_RULES_JSON)*/
+
     spark.stop
   }
-  /*
-  val calculateEWSUsingLearning = udf((rule: Row) => {
-
-    fpgrowth.setMinConfidence(0.0).setMinSupport(0.01).setItemsCol("patterns")
-
-    val EWS = fpgrowth.fit(negativeTransactions).freqItemsets
-      .withColumn("operator", explode(col("items")))
-      .drop(col("items"))
-      .drop(col("freq"))
-
-    val ewsElements = subjectOperatorMap.join(headFacts, "subject")
-      .union(subjectOperatorMap.join(bodyFacts, "subject"))
-      .withColumn("operator", explode(col("operators")))
-      .drop("operators")
-      .join(operatorSubjectMap.join(EWS, "operator")
-        .drop("EWS")
-        .withColumn("subject2", explode(col("subjects")))
-        .drop("subjects"), "operator")
-    val ewsTransaction = ewsElements.select("operator", "subject")
-      .union(ewsElements.select("operator", "subject2"))
-      .groupBy(col("operator")).agg(count("*")
-        .as("numerator"))
-    val bodyElements = subjectOperatorMap.join(bodyFacts, "subject")
-      .withColumn("operator", explode(col("operators")))
-      .drop("operators")
-      .join(operatorSubjectMap.join(EWS, "operator")
-        .drop("EWS")
-        .withColumn("subject2", explode(col("subjects")))
-        .drop("subjects"), "operator")
-    val bodyTransaction = bodyElements.select("operator", "subject").union(bodyElements.select("operator", "subject2"))
-      .groupBy(col("operator")).agg(count("*")
-        .as("denominator"))
-    ewsTransaction.join(bodyTransaction, "operator")
-      .withColumn("confidence", col("numerator")
-        .divide(col("denominator"))).filter("confidence >= 0.2")
-      .drop(col("numerator"))
-      .drop(col("denominator"))
-      .rdd.map(r => r.getString(0)).collect().toList
-  })
-  val calculateEWSUsingSetOperations = udf((rule: Row) => {
-    val head = rule.getSeq(1)
-    val body = rule.getSeq(0)
-    val bodyFacts = operatorSubjectMap.select(col("subjects"))
-      .where(col("operator").isin(body: _*)).withColumn("subject", explode(col("subjects"))).drop("subjects")
-    val headFacts = operatorSubjectMap.select(col("subjects"))
-      .where(col("operator").isin(head: _*)).withColumn("subject", explode(col("subjects"))).drop("subjects")
-    val differenceBodyandHead = bodyFacts.except(headFacts)
-
-    val EWS = differenceBodyandHead.join(operatorSubjectMap.withColumn("subject", explode(col("subjects"))), "subject")
-
-      .drop("subjects")
-      .select(col("operator"))
-
-    val ewsElements = subjectOperatorMap.join(headFacts, "subject").union(subjectOperatorMap
-      .join(bodyFacts, "subject"))
-      .withColumn("operator", explode(col("operators")))
-      .drop("operators")
-
-      .join(operatorSubjectMap.join(EWS, "operator")
-        .drop("EWS")
-        .withColumn("subject2", explode(col("subjects")))
-        .drop("subjects"), "operator")
-    val ewsTransaction = ewsElements.select("operator", "subject")
-      .union(ewsElements.select("operator", "subject2"))
-      .groupBy(col("operator")).agg(count("*")
-        .as("numerator"))
-
-    val bodyElements = subjectOperatorMap.join(bodyFacts, "subject")
-      .withColumn("operator", explode(col("operators")))
-      .drop("operators")
-
-      .join(operatorSubjectMap.join(EWS, "operator")
-        .drop("EWS")
-        .withColumn("subject2", explode(col("subjects")))
-        .drop("subjects"), "operator")
-    val bodyTransaction = bodyElements.select("operator", "subject").union(bodyElements.select("operator", "subject2"))
-      .groupBy(col("operator")).agg(count("*")
-        .as("denominator"))
-    ewsTransaction.join(bodyTransaction, "operator")
-      .withColumn("confidence", col("numerator")
-        .divide(col("denominator"))).filter("confidence >= 0.3")
-      .drop(col("numerator"))
-      .drop(col("denominator"))
-      .rdd.map(r => r.getString(0)).collect().toList
-  })
-  def generateFacts(rule: Row): Unit = {
-    val body = rule.getSeq(0)
-    val head = rule.getSeq[String](1)(0)
-    val ele = head.replaceAll("<", "").replaceAll(">", "").split(",")
-    val confidence = rule.getDouble(2)
-    val negation = rule.getString(3)
-
-    this.newFacts = this.newFacts.union(operatorSubjectMap.select(col("subjects"))
-      .where(col("operator").isin(body: _*))
-      .withColumn("subject", explode(col("subjects")))
-      .drop("subjects")
-      .intersect(subjectOperatorMap.select(col("subject"))
-        .where(array_contains(col("operators"), negation)))
-      .withColumn("conf", lit(confidence))
-      .withColumn("p", lit(ele(0)))
-      .withColumn("o", lit(ele(1)))
-      .withColumnRenamed("subject", "s")
-      .select("conf", "s", "p", "o"))
-
-  }*/
 
 }
