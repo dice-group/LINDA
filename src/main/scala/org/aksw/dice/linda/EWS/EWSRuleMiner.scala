@@ -52,7 +52,7 @@ object EWSRuleMiner {
       .agg(collect_list(col("subject")).as("subjects"))
     val removeEmpty = udf((array: Seq[String]) => !array.isEmpty)
     this.newFacts = spark.createDataFrame(spark.sparkContext.emptyRDD[Row], resultSchema)
-    fpgrowth.setItemsCol("items").setMinSupport(0.3).setMinConfidence(0.5)
+    fpgrowth.setItemsCol("items").setMinSupport(0.3).setMinConfidence(0.3)
     val model = fpgrowth.fit(subjectOperatorMap.select(col("operators").as("items")))
 
     val hornRules = model.associationRules
@@ -87,7 +87,7 @@ object EWSRuleMiner {
 
     val operatorSupport = rulesWithFacts.groupBy("antecedent", "consequent", "operator") // get operator support
       .agg(count("operator").as("support"))
-      .filter(col("support") >= 0.4 * subjectOperatorMap.count())
+      .filter(col("support") >= 0.2 * subjectOperatorMap.count())
     def getRuleSupport = udf((head: mutable.WrappedArray[String], body: mutable.WrappedArray[String], neg: mutable.WrappedArray[String]) => {
       head.intersect(body).intersect(neg).size
     })
