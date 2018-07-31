@@ -13,8 +13,8 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.types._
 import org.aksw.dice.linda.Utils.RDF2TransactionMap
 import org.aksw.dice.linda.Utils.LINDAProperties._
-import org.apache.spark.broadcast.Broadcast
-import org.apache.spark.sql.catalyst.plans.logical.With
+
+
 
 object EWSRuleMiner {
 
@@ -43,7 +43,7 @@ object EWSRuleMiner {
       .appName(APP_EWS_MINER)
       .getOrCreate()
     val context = spark.sparkContext
-    val triplesDF = spark.read.rdf(Lang.NTRIPLES)("/Users/Kunal/workspaceThesis/LINDA/Data/rdf.nt")
+    val triplesDF = spark.read.rdf(Lang.NTRIPLES)(INPUT_DATASET)
 
     RDF2TransactionMap.readFromDF(triplesDF)
     val subjectOperatorMap = spark.createDataFrame(RDF2TransactionMap.subject2Operator
@@ -54,7 +54,7 @@ object EWSRuleMiner {
       .agg(collect_list(col("subject")).as("subjects"))
     val removeEmpty = udf((array: Seq[String]) => !array.isEmpty)
     this.newFacts = spark.createDataFrame(spark.sparkContext.emptyRDD[Row], resultSchema)
-    fpgrowth.setItemsCol("items").setMinSupport(0.01).setMinConfidence(0.1)
+    fpgrowth.setItemsCol("items").setMinSupport(0.2).setMinConfidence(0.2)
     val model = fpgrowth.fit(subjectOperatorMap.select(col("operators").as("items")))
 
     val hornRules = model.associationRules
@@ -129,7 +129,7 @@ object EWSRuleMiner {
       col("consequent"), col("confidence"))
       .write.mode(SaveMode.Overwrite).json(EWS_RULES_JSON)
 
-    facts.coalesce(1).write.mode(SaveMode.Overwrite)
+    facts.write.mode(SaveMode.Overwrite)
       .option("header", "false")
       .option("delimiter", "\t").csv(FACTS_KB_EWS)
 
