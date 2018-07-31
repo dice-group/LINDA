@@ -18,12 +18,12 @@ object LINDAProperties {
   /*
    * LINDA CONFIGS
    */
-  final val EWS_RULES_JSON = HDFS_MASTER + "EWS/" + DATASET_NAME + "/Rules/Json"
+  final val EWS_RULES_JSON = HDFS_MASTER + "EWS/" + DATASET_NAME + "/Rules/ewsrules.json"
   final val EWS_RULES_PARQUET = HDFS_MASTER + "EWS/" + DATASET_NAME + "/Rules/Parquet"
-  final val FACTS_KB_EWS = HDFS_MASTER + "EWS/" + DATASET_NAME + "/New Facts/EWSresult.csv"
+  final val FACTS_KB_EWS = HDFS_MASTER + "EWS/" + DATASET_NAME + "/New Facts/facts.csv"
   final val DT_RULES_JSON = HDFS_MASTER + "DT/" + DATASET_NAME + "/Rules/Json"
   final val DT_RULES_PARQUET = HDFS_MASTER + "DT/" + DATASET_NAME + "/Rules/Parquet"
-  final val FACTS_KB_DT = HDFS_MASTER + "DT/" + DATASET_NAME + "/New Facts/DTresult.csv"
+  final val FACTS_KB_DT = HDFS_MASTER + "DT/" + DATASET_NAME + "/New Facts/"
   final val LIBSVM_DATASET = HDFS_MASTER + "DTAlgo/LIBSVMData/"
   final val DT_INPUT_DATASET = HDFS_MASTER + "DTAlgo/FinalData/"
 

@@ -14,8 +14,6 @@ import org.apache.spark.sql.types._
 import org.aksw.dice.linda.Utils.RDF2TransactionMap
 import org.aksw.dice.linda.Utils.LINDAProperties._
 
-
-
 object EWSRuleMiner {
 
   private val logger = LoggerFactory.getLogger(this.getClass.getName)
