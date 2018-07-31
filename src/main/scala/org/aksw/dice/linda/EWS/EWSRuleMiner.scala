@@ -111,7 +111,7 @@ object EWSRuleMiner {
       .filter(col("confidence") >= 0.2)
       .withColumn("newFacts", getFacts(col("bodySet"), col("operatorSet")))
 
-    val facts = EWSWithFacts.distinct
+    val facts = EWSWithFacts
       .select(col("consequent"), col("newFacts"), col("confidence"))
       .withColumn("s", explode(col("newFacts")))
       .withColumn("po", explode(col("consequent")))
