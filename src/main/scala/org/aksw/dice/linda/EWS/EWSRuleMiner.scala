@@ -111,7 +111,7 @@ object EWSRuleMiner {
       .filter(col("confidence") >= 0.2)
       .withColumn("newFacts", getFacts(col("bodySet"), col("operatorSet")))
 
-    val facts = EWSWithFacts
+    val facts = EWSWithFacts.distinct
       .select(col("consequent"), col("newFacts"), col("confidence"))
       .withColumn("s", explode(col("newFacts")))
       .withColumn("po", explode(col("consequent")))
@@ -127,7 +127,7 @@ object EWSRuleMiner {
       col("consequent"), col("confidence"))
       .write.mode(SaveMode.Overwrite).json(EWS_RULES_JSON)
 
-    facts.write.mode(SaveMode.Overwrite)
+    facts.distinct.write.mode(SaveMode.Overwrite)
       .option("header", "false")
       .option("delimiter", "\t").csv(FACTS_KB_EWS)
 
