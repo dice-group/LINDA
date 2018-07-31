@@ -54,7 +54,7 @@ object EWSRuleMiner {
       .agg(collect_list(col("subject")).as("subjects"))
     val removeEmpty = udf((array: Seq[String]) => !array.isEmpty)
     this.newFacts = spark.createDataFrame(spark.sparkContext.emptyRDD[Row], resultSchema)
-    fpgrowth.setItemsCol("items").setMinSupport(0.2).setMinConfidence(0.2)
+    fpgrowth.setItemsCol("items").setMinSupport(0.3).setMinConfidence(0.5)
     val model = fpgrowth.fit(subjectOperatorMap.select(col("operators").as("items")))
 
     val hornRules = model.associationRules
