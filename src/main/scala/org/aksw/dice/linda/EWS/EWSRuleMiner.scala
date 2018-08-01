@@ -47,7 +47,7 @@ object EWSRuleMiner {
 
     val subjectOperatorMap = spark
       .createDataFrame(RDF2TransactionMap.subject2Operator
-        .map(r => Row(r._1, r._2.map(a => a.toString()).distinct)), StructType(subjectOperatorMapSchema))
+        .map(r => Row(r._1, r._2.map(a => a.toString()))), StructType(subjectOperatorMapSchema))
 
     val operatorSubjectMap = subjectOperatorMap
       .withColumn("operator", explode(col("operators"))).drop("operators")
@@ -57,7 +57,7 @@ object EWSRuleMiner {
     this.newFacts = spark.createDataFrame(spark.sparkContext.emptyRDD[Row], resultSchema)
     fpgrowth.setItemsCol("items").setMinSupport(0.2).setMinConfidence(0.2)
 
-    val model = fpgrowth.fit(subjectOperatorMap.select(col("operators")))
+    val model = fpgrowth.fit(subjectOperatorMap.select(col("operators")).as("items"))
 
     val hornRules = model.associationRules
       .filter(removeEmpty(col("consequent")))
