@@ -4,9 +4,8 @@ object LINDAProperties {
   /*
    * DATASET CONFIGS
    */
-  //
-  //TODO: Add Other datasets
-  final val DATASET_NAME = "freebase_mtr100_mte100-train"
+
+  final val DATASET_NAME = "DBLPL3S"
   final val HDFS_MASTER = "hdfs://172.18.160.17:54310/KunalJha/"
 
   final val INPUT_DATASET = HDFS_MASTER + DATASET_NAME + ".nt"
@@ -20,10 +19,10 @@ object LINDAProperties {
    */
   final val EWS_RULES_JSON = HDFS_MASTER + "EWS/" + DATASET_NAME + "/Rules/ewsrules"
   final val EWS_RULES_PARQUET = HDFS_MASTER + "EWS/" + DATASET_NAME + "/Rules/Parquet"
-  final val FACTS_KB_EWS = HDFS_MASTER + "EWS/" + DATASET_NAME + "/New Facts/facts"
+  final val FACTS_KB_EWS = HDFS_MASTER + "EWS/" + DATASET_NAME + "/Facts"
   final val DT_RULES_JSON = HDFS_MASTER + "DT/" + DATASET_NAME + "/Rules/Json"
   final val DT_RULES_PARQUET = HDFS_MASTER + "DT/" + DATASET_NAME + "/Rules/Parquet"
-  final val FACTS_KB_DT = HDFS_MASTER + "DT/" + DATASET_NAME + "/New Facts/"
+  final val FACTS_KB_DT = HDFS_MASTER + "DT/" + DATASET_NAME + "/Facts"
   final val LIBSVM_DATASET = HDFS_MASTER + "DTAlgo/LIBSVMData/"
   final val DT_INPUT_DATASET = HDFS_MASTER + "DTAlgo/FinalData/"
 
@@ -41,3 +40,4 @@ object LINDAProperties {
   final val APP_DT_MINER = "LINDA (DT Miner)"
 
 }
+

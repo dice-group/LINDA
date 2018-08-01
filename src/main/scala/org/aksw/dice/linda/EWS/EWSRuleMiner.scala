@@ -44,16 +44,20 @@ object EWSRuleMiner {
     val triplesDF = spark.read.rdf(Lang.NTRIPLES)(INPUT_DATASET)
 
     RDF2TransactionMap.readFromDF(triplesDF)
-    val subjectOperatorMap = spark.createDataFrame(RDF2TransactionMap.subject2Operator
-      .map(r => Row(r._1, r._2.map(a => a.toString()))), StructType(subjectOperatorMapSchema))
+
+    val subjectOperatorMap = spark
+      .createDataFrame(RDF2TransactionMap.subject2Operator
+        .map(r => Row(r._1, r._2.map(a => a.toString()).distinct)), StructType(subjectOperatorMapSchema))
+
     val operatorSubjectMap = subjectOperatorMap
       .withColumn("operator", explode(col("operators"))).drop("operators")
       .groupBy(col("operator"))
-      .agg(collect_list(col("subject")).as("subjects"))
+      .agg(collect_set(col("subject")).as("subjects"))
     val removeEmpty = udf((array: Seq[String]) => !array.isEmpty)
     this.newFacts = spark.createDataFrame(spark.sparkContext.emptyRDD[Row], resultSchema)
-    fpgrowth.setItemsCol("items").setMinSupport(0.3).setMinConfidence(0.3)
-    val model = fpgrowth.fit(subjectOperatorMap.select(col("operators").as("items")))
+    fpgrowth.setItemsCol("items").setMinSupport(0.2).setMinConfidence(0.2)
+
+    val model = fpgrowth.fit(subjectOperatorMap.select(col("operators")))
 
     val hornRules = model.associationRules
       .filter(removeEmpty(col("consequent")))
@@ -87,7 +91,7 @@ object EWSRuleMiner {
 
     val operatorSupport = rulesWithFacts.groupBy("antecedent", "consequent", "operator") // get operator support
       .agg(count("operator").as("support"))
-      .filter(col("support") >= 0.2 * subjectOperatorMap.count())
+      .filter(col("support") >= 0.1 * subjectOperatorMap.count())
     def getRuleSupport = udf((head: mutable.WrappedArray[String], body: mutable.WrappedArray[String], neg: mutable.WrappedArray[String]) => {
       head.intersect(body).intersect(neg).size
     })
@@ -105,7 +109,9 @@ object EWSRuleMiner {
       .join(operatorSupport, Seq("antecedent", "consequent", "operator"))
       .join(operatorSubjectMap, "operator")
       .withColumnRenamed("subjects", "operatorSet")
-      .withColumn("RuleSupport", getRuleSupport(col("headSet"), col("bodySet"), col("operatorSet")))
+      .withColumn("RuleSupport", getRuleSupport(
+        col("headSet"),
+        col("bodySet"), col("operatorSet")))
       .withColumn("BodySupport", getBodySupport(col("bodySet"), col("operatorSet")))
       .withColumn("confidence", col("RuleSupport").divide(col("BodySupport")))
       .filter(col("confidence") >= 0.2)
@@ -125,7 +131,7 @@ object EWSRuleMiner {
 
     EWSWithFacts.select(col("antecedent"), col("operator").as("negation"),
       col("consequent"), col("confidence"))
-      .write.mode(SaveMode.Overwrite).json(EWS_RULES_JSON)
+      .distinct.write.mode(SaveMode.Overwrite).json(EWS_RULES_JSON)
 
     facts.distinct.write.mode(SaveMode.Overwrite)
       .option("header", "false")
@@ -135,3 +141,8 @@ object EWSRuleMiner {
   }
 
 }
+
+
+
+
+

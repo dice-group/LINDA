@@ -54,7 +54,8 @@ object DatasetWriter {
       .drop("factConf").drop("subject")
       .withColumn("operatorsIds", convertToVector(col("x"))).drop("x")
     this.operator2Id.write.mode(SaveMode.Overwrite).parquet(OPERATOR_ID_MAP)
-    operator2Id.limit(5).rdd.foreach(r => libsvmwriter(
+    
+    operator2Id.rdd.foreach(r => libsvmwriter(
       r.getInt(1),
       libsvmDataset.select("operatorsIds").where(array_contains(col("operatorsIds"), r.getInt(1))),
       libsvmDataset.select("operatorsIds").where(!array_contains(col("operatorsIds"), r.getInt(1)))))
