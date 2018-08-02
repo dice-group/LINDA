@@ -41,11 +41,12 @@ object DatasetWriter {
     this.subjectOperatorMap = spark.createDataFrame(RDF2TransactionMap.subject2Operator
       .map(r => Row(r._1, r._2.map(a => a.toString()))), StructType(subjectOperatorSchema))
 
-    this.operator2Id = spark.createDataFrame(RDF2TransactionMap.subject2Operator
+    this operator2Id = spark.createDataFrame(RDF2TransactionMap.subject2Operator
       .map(r => Row(r._2.map(a => a.toString()))), StructType(operatorIdSchema))
       .withColumn("operator", explode(col("resources")))
       .withColumn("operatorId", row_number().over(Window.orderBy("operator")))
       .drop(col("resources"))
+
     val arrayContains = udf((array: mutable.WrappedArray[Int], value: Int) => {
       array.toSeq.contains(value)
     })
@@ -63,10 +64,12 @@ object DatasetWriter {
       .drop("x")
       .drop("operator")
 
-    operator2Id.select("operatorId").collect().foreach(r => libsvmwriter(
-      r.getInt(0),
-      dataset.select("operatorsIds").where(col("operatorId") === r.getInt(0)),
-      dataset.select("operatorsIds").where(col("operatorId") !== r.getInt(0))))
+    for (id <- 1 to numberofOperators) {
+      val acceptedEntities = dataset.select("operatorsIds").where(col("operatorId") === id)
+      if (acceptedEntities.count() != 0) {
+        libsvmwriter(id, acceptedEntities, dataset.except(acceptedEntities))
+      }
+    }
 
   }
   def libsvmwriter(id: Int, acceptedEntities: DataFrame, nonAcceptedEntities: DataFrame) {
