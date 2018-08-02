@@ -44,22 +44,29 @@ object DatasetWriter {
     this.operator2Id = spark.createDataFrame(RDF2TransactionMap.subject2Operator
       .map(r => Row(r._2.map(a => a.toString()))), StructType(operatorIdSchema))
       .withColumn("operator", explode(col("resources")))
-      .withColumn("operatorIds", row_number().over(Window.orderBy("operator")))
+      .withColumn("operatorId", row_number().over(Window.orderBy("operator")))
       .drop(col("resources"))
-
+    val arrayContains = udf((array: mutable.WrappedArray[Int], value: Int) => {
+      array.toSeq.contains(value)
+    })
     this.numberofOperators = this.operator2Id.count().toInt
     this.libsvmDataset = subjectOperatorMap.withColumn("operator", explode(col("operators")))
       .join(operator2Id, "operator").groupBy(col("subject"), col("operators"))
-      .agg(collect_list(col("operatorIds")).as("x")).drop("operators")
-      .drop("factConf").drop("subject")
-      .withColumn("operatorsIds", convertToVector(col("x"))).drop("x")
+      .agg(collect_list(col("operatorId")).as("x")).drop("operators")
+      .drop("subject")
+      .withColumn("operatorsIds", convertToVector(col("x")))
     this.operator2Id.write.mode(SaveMode.Overwrite).parquet(OPERATOR_ID_MAP)
-    
-    operator2Id.rdd.foreach(r => libsvmwriter(
-      r.getInt(1),
-      libsvmDataset.select("operatorsIds").where(array_contains(col("operatorsIds"), r.getInt(1))),
-      libsvmDataset.select("operatorsIds").where(!array_contains(col("operatorsIds"), r.getInt(1)))))
-    spark.stop
+
+    val dataset = operator2Id.join(libsvmDataset, arrayContains(
+      libsvmDataset.col("x"),
+      operator2Id.col("operatorId")))
+      .drop("x")
+      .drop("operator")
+
+    operator2Id.select("operatorId").collect().foreach(r => libsvmwriter(
+      r.getInt(0),
+      dataset.select("operatorsIds").where(col("operatorId") === r.getInt(0)),
+      dataset.select("operatorsIds").where(col("operatorId") !== r.getInt(0))))
 
   }
   def libsvmwriter(id: Int, acceptedEntities: DataFrame, nonAcceptedEntities: DataFrame) {
@@ -72,8 +79,7 @@ object DatasetWriter {
         Row(1.0, Vectors.sparse(this.numberofOperators + 1, j.toArray, Array.fill[Double](j.size) { 1 }))
       }).union(nonAcceptedEntities.rdd.map(y => Row(-1.0, Vectors.sparse(
       this.numberofOperators + 1, y.getSeq[Int](0).distinct.toArray, Array.fill[Double](y.getSeq[Int](0).distinct.size) { 1 })))), struct)
-      //TODO: Coalesce has to be changed
-      .coalesce(1).write.format("libsvm").mode(SaveMode.Overwrite).save(LIBSVM_DATASET + id)
+      .write.format("libsvm").mode(SaveMode.Overwrite).save(LIBSVM_DATASET + id)
 
   }
 

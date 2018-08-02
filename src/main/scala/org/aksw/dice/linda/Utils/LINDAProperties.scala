@@ -1,11 +1,12 @@
 package org.aksw.dice.linda.Utils
 
 object LINDAProperties {
-  /*
-   * DATASET CONFIGS
-   */
-
-  final val DATASET_NAME = "DBLPL3S"
+/*
+  * DATASET CONFIGS
+  */
+  //
+  //TODO: Add Other datasets
+   final val DATASET_NAME = "DBLPL3S-LinkedACM"
   final val HDFS_MASTER = "hdfs://172.18.160.17:54310/KunalJha/"
 
   final val INPUT_DATASET = HDFS_MASTER + DATASET_NAME + ".nt"
@@ -28,7 +29,9 @@ object LINDAProperties {
 
   /*
    * SPARK CONFIGS
+   *
    */
+
   //final val SPARK_SYSTEM = "local[*]"
   final val SPARK_SYSTEM = "spark://172.18.160.16:3090"
   final val SERIALIZER = "spark.serializer"
@@ -40,4 +43,3 @@ object LINDAProperties {
   final val APP_DT_MINER = "LINDA (DT Miner)"
 
 }
-
