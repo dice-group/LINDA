@@ -41,7 +41,23 @@ object EWSRuleMiner {
       .appName(APP_EWS_MINER)
       .getOrCreate()
     val context = spark.sparkContext
+
+    def getRuleSupport = udf((head: mutable.WrappedArray[String], body: mutable.WrappedArray[String], neg: mutable.WrappedArray[String]) => {
+      head.intersect(body).intersect(neg).size
+    })
+    def getBodySupport = udf((body: mutable.WrappedArray[String], neg: mutable.WrappedArray[String]) => {
+      body.intersect(neg).size
+    })
+
+    def getFacts = udf((body: mutable.WrappedArray[String], neg: mutable.WrappedArray[String]) => {
+      body.intersect(neg)
+    })
+    def cleanString = udf((body: mutable.WrappedArray[String]) => {
+      body.mkString("").replace("[", "").replace("]", "")
+    })
+
     val triplesDF = spark.read.rdf(Lang.NTRIPLES)(INPUT_DATASET)
+    println(DATASET_NAME + "::::  Number of Triples :  " + triplesDF.count())
 
     RDF2TransactionMap.readFromDF(triplesDF)
     val subjectOperatorMap = spark.createDataFrame(RDF2TransactionMap.subject2Operator
@@ -52,18 +68,20 @@ object EWSRuleMiner {
       .agg(collect_list(col("subject")).as("subjects"))
     val removeEmpty = udf((array: Seq[String]) => !array.isEmpty)
     this.newFacts = spark.createDataFrame(spark.sparkContext.emptyRDD[Row], resultSchema)
-    fpgrowth.setItemsCol("items").setMinSupport(0.0).setMinConfidence(0.0)
+    fpgrowth.setItemsCol("items")
+      .setMinSupport(0.0)
+      .setMinConfidence(0.0)
 
+    val model = fpgrowth.fit(subjectOperatorMap.select(col("operators").as("items")))
+    val originalRules = model.associationRules
+    println("Number of ORiginal Rules" + originalRules.count())
 
- val model = fpgrowth.fit(subjectOperatorMap.select(col("operators").as("items")))
-
-
-    val hornRules = model.associationRules
+    val hornRules = originalRules
       .filter(removeEmpty(col("consequent")))
       .withColumn("body", explode(col("antecedent")))
       .withColumn("head", explode(col("consequent")))
-   
- val setDiff = udf((head: mutable.WrappedArray[String], body: mutable.WrappedArray[String]) => {
+
+    val setDiff = udf((head: mutable.WrappedArray[String], body: mutable.WrappedArray[String]) => {
       body.diff(head)
 
     })
@@ -71,7 +89,7 @@ object EWSRuleMiner {
       list.intersect(body).size != 0
     })
 
-    val rulesWithFacts = hornRules
+    val rulesWithFactsDF = hornRules
       .join(operatorSubjectMap, hornRules("body") === operatorSubjectMap("operator"))
       .withColumnRenamed("subjects", "bodySet")
       .select("antecedent", "consequent", "bodySet")
@@ -89,36 +107,22 @@ object EWSRuleMiner {
       .drop("subject")
       .drop("setdiff")
 
-    val operatorSupport = rulesWithFacts.groupBy("antecedent", "consequent", "operator") // get operator support
+    val operatorSupportDF = rulesWithFactsDF.groupBy("antecedent", "consequent", "operator") // get operator support
       .agg(count("operator").as("support"))
-     
-// .filter(col("support") >= 0.1 * subjectOperatorMap.count())
 
-    def getRuleSupport = udf((head: mutable.WrappedArray[String], body: mutable.WrappedArray[String], neg: mutable.WrappedArray[String]) => {
-      head.intersect(body).intersect(neg).size
-    })
-    def getBodySupport = udf((body: mutable.WrappedArray[String], neg: mutable.WrappedArray[String]) => {
-      body.intersect(neg).size
-    })
-
-    def getFacts = udf((body: mutable.WrappedArray[String], neg: mutable.WrappedArray[String]) => {
-      body.intersect(neg)
-    })
-    def cleanString = udf((body: mutable.WrappedArray[String]) => {
-      body.mkString("").replace("[", "").replace("]", "")
-    })
-    val EWSWithFacts = rulesWithFacts
-      .join(operatorSupport, Seq("antecedent", "consequent", "operator"))
+    val EWSWithFactsDF = rulesWithFactsDF
+      .join(operatorSupportDF, Seq("antecedent", "consequent", "operator"))
       .join(operatorSubjectMap, "operator")
       .withColumnRenamed("subjects", "operatorSet")
-      .withColumn("RuleSupport", getRuleSupport(col("headSet"),
- col("bodySet"), col("operatorSet")))
+      .withColumn("RuleSupport", getRuleSupport(
+        col("headSet"),
+        col("bodySet"), col("operatorSet")))
       .withColumn("BodySupport", getBodySupport(col("bodySet"), col("operatorSet")))
       .withColumn("confidence", col("RuleSupport").divide(col("BodySupport")))
       .filter(col("confidence") >= 0.1)
       .withColumn("newFacts", getFacts(col("bodySet"), col("operatorSet")))
 
-    val facts = EWSWithFacts
+    val facts = EWSWithFactsDF
       .select(col("consequent"), col("newFacts"), col("confidence"))
       .withColumn("s", explode(col("newFacts")))
       .withColumn("po", explode(col("consequent")))
@@ -130,15 +134,19 @@ object EWSRuleMiner {
         col("_tmp").getItem(0).as("p"),
         col("_tmp").getItem(1).as("o"))
 
-    EWSWithFacts.select(col("antecedent"), col("operator").as("negation"),
+    val finalRules = EWSWithFactsDF.select(col("antecedent"), col("operator").as("negation"),
       col("consequent"), col("confidence"))
-      .distinct.write.mode(SaveMode.Overwrite).json(EWS_RULES_JSON)
+
+    println("Number of Exceptions" + finalRules.count())
+    finalRules.distinct.write.mode(SaveMode.Overwrite).json(EWS_RULES_JSON)
+
+    println("Number of Facts " + facts.count())
 
     facts.write.mode(SaveMode.Overwrite)
       .option("header", "false")
       .option("delimiter", "\t").csv(FACTS_KB_EWS)
 
-    spark.stop
+      spark.stop
   }
 
 }

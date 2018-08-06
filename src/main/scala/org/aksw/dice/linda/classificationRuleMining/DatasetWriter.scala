@@ -56,7 +56,7 @@ object DatasetWriter {
       .agg(collect_list(col("operatorId")).as("x")).drop("operators")
       .drop("subject")
       .withColumn("operatorsIds", convertToVector(col("x")))
-    this.operator2Id.write.mode(SaveMode.Overwrite).parquet(OPERATOR_ID_MAP)
+    // this.operator2Id.write.mode(SaveMode.Overwrite).parquet(OPERATOR_ID_MAP)
 
     val dataset = operator2Id.join(libsvmDataset, arrayContains(
       libsvmDataset.col("x"),
@@ -64,10 +64,11 @@ object DatasetWriter {
       .drop("x")
       .drop("operator")
 
-    for (id <- 1 to numberofOperators) {
+    for (id <- 1 to this.numberofOperators) {
       val acceptedEntities = dataset.select("operatorsIds").where(col("operatorId") === id)
       if (acceptedEntities.count() != 0) {
-        libsvmwriter(id, acceptedEntities, dataset.except(acceptedEntities))
+
+        libsvmwriter(id, acceptedEntities, dataset.select("operatorsIds").where(col("operatorId") !== id))
       }
     }
 

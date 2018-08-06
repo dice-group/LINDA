@@ -6,7 +6,7 @@ object LINDAProperties {
   */
   //
   //TODO: Add Other datasets
-   final val DATASET_NAME = "DBLPL3S-LinkedACM"
+   final val DATASET_NAME = ""
   final val HDFS_MASTER = "hdfs://172.18.160.17:54310/KunalJha/"
 
   final val INPUT_DATASET = HDFS_MASTER + DATASET_NAME + ".nt"
@@ -24,7 +24,7 @@ object LINDAProperties {
   final val DT_RULES_JSON = HDFS_MASTER + "DT/" + DATASET_NAME + "/Rules/Json"
   final val DT_RULES_PARQUET = HDFS_MASTER + "DT/" + DATASET_NAME + "/Rules/Parquet"
   final val FACTS_KB_DT = HDFS_MASTER + "DT/" + DATASET_NAME + "/Facts"
-  final val LIBSVM_DATASET = HDFS_MASTER + "DTAlgo/LIBSVMData/"
+  final val LIBSVM_DATASET = HDFS_MASTER + "DTAlgo/" + DATASET_NAME + "/LIBSVMData/"
   final val DT_INPUT_DATASET = HDFS_MASTER + "DTAlgo/FinalData/"
 
   /*
@@ -32,12 +32,11 @@ object LINDAProperties {
    *
    */
 
-  //final val SPARK_SYSTEM = "local[*]"
-  final val SPARK_SYSTEM = "spark://172.18.160.16:3090"
+  final val SPARK_SYSTEM = "local[*]"
+  //final val SPARK_SYSTEM = "spark://172.18.160.16:3090"
   final val SERIALIZER = "spark.serializer"
   final val KYRO_SERIALIZER = "org.apache.spark.serializer.KryoSerializer"
   final val WAREHOUSE = "spark.sql.warehouse.dir"
-
   final val APP_DATASET_CREATER = "LINDA (Data Set Creater)"
   final val APP_EWS_MINER = "LINDA  (EWS Miner)"
   final val APP_DT_MINER = "LINDA (DT Miner)"
