@@ -77,7 +77,7 @@ object DatasetWriter {
     val struct = StructType(List(
       StructField("label", DoubleType, false),
       StructField("features", VectorType, false)))
-    spark.sqlContext.createDataFrame(acceptedEntities.rdd.map(x =>
+    spark.createDataFrame(acceptedEntities.rdd.map(x =>
       {
         val j = x.getSeq[Int](0).filter(_ != id).distinct
         Row(1.0, Vectors.sparse(this.numberofOperators + 1, j.toArray, Array.fill[Double](j.size) { 1 }))
