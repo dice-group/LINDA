@@ -146,7 +146,7 @@ object EWSRuleMiner {
       .option("header", "false")
       .option("delimiter", "\t").csv(FACTS_KB_EWS)
 
-      spark.stop
+    spark.stop
   }
 
 }

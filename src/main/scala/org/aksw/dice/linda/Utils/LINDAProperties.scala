@@ -6,7 +6,7 @@ object LINDAProperties {
   */
   //
   //TODO: Add Other datasets
-  final val DATASET_NAME = ""
+  final val DATASET_NAME = "wordnet-mlj12-train"
   final val HDFS_MASTER = "hdfs://172.18.160.17:54310/KunalJha/"
 
   final val INPUT_DATASET = HDFS_MASTER + DATASET_NAME + ".nt"

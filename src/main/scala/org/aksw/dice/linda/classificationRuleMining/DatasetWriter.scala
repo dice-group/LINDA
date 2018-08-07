@@ -23,7 +23,7 @@ object DatasetWriter {
   lazy val subjectOperatorSchema = List(StructField("subject", StringType, true), StructField("operators", ArrayType(StringType, true), true))
   lazy val operatorIdSchema = List(StructField("resources", ArrayType(StringType), true))
   lazy val subjectIdSchema = List(StructField("subject", StringType, true))
-  var numberofOperators: Int = 0
+
   val spark = SparkSession.builder
     .master(SPARK_SYSTEM)
     .config(SERIALIZER, KYRO_SERIALIZER)
@@ -50,7 +50,7 @@ object DatasetWriter {
     val arrayContains = udf((array: mutable.WrappedArray[Int], value: Int) => {
       array.toSeq.contains(value)
     })
-    this.numberofOperators = this.operator2Id.count().toInt
+    val numberofOperators = this.operator2Id.count().toInt
     this.libsvmDataset = subjectOperatorMap.withColumn("operator", explode(col("operators")))
       .join(operator2Id, "operator").groupBy(col("subject"), col("operators"))
       .agg(collect_list(col("operatorId")).as("x")).drop("operators")
@@ -64,26 +64,25 @@ object DatasetWriter {
       .drop("x")
       .drop("operator")
 
-    for (id <- 1 to this.numberofOperators) {
+    for (id <- 1 to 100) {
       val acceptedEntities = dataset.select("operatorsIds").where(col("operatorId") === id)
       if (acceptedEntities.count() != 0) {
-
-        libsvmwriter(id, acceptedEntities, dataset.select("operatorsIds").where(col("operatorId") !== id))
+        libsvmwriter(id, numberofOperators + 1, acceptedEntities, dataset.select("operatorsIds").where(col("operatorId") !== id))
       }
     }
 
   }
-  def libsvmwriter(id: Int, acceptedEntities: DataFrame, nonAcceptedEntities: DataFrame) {
+  def libsvmwriter(id: Int, sizeOFVector: Int, acceptedEntities: DataFrame, nonAcceptedEntities: DataFrame) {
     val struct = StructType(List(
       StructField("label", DoubleType, false),
       StructField("features", VectorType, false)))
     spark.createDataFrame(acceptedEntities.rdd.map(x =>
       {
         val j = x.getSeq[Int](0).filter(_ != id).distinct
-        Row(1.0, Vectors.sparse(this.numberofOperators + 1, j.toArray, Array.fill[Double](j.size) { 1 }))
+        Row(1.0, Vectors.sparse(sizeOFVector, j.toArray, Array.fill[Double](j.size) { 1 }))
       }).union(nonAcceptedEntities.rdd.map(y => Row(-1.0, Vectors.sparse(
-      this.numberofOperators + 1, y.getSeq[Int](0).distinct.toArray, Array.fill[Double](y.getSeq[Int](0).distinct.size) { 1 })))), struct)
-      .write.format("libsvm").mode(SaveMode.Overwrite).save(LIBSVM_DATASET + id)
+      sizeOFVector, y.getSeq[Int](0).distinct.toArray, Array.fill[Double](y.getSeq[Int](0).distinct.size) { 1 })))), struct)
+      .coalesce(1).write.format("libsvm").mode(SaveMode.Overwrite).save(LIBSVM_DATASET + id)
 
   }
 
