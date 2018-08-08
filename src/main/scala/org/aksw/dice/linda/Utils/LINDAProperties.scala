@@ -6,7 +6,7 @@ object LINDAProperties {
   */
   //
   //TODO: Add Other datasets
-  final val DATASET_NAME = "wordnet-mlj12-train"
+  final val DATASET_NAME = "imdb"
   final val HDFS_MASTER = "hdfs://172.18.160.17:54310/KunalJha/"
 
   final val INPUT_DATASET = HDFS_MASTER + DATASET_NAME + ".nt"
@@ -32,8 +32,8 @@ object LINDAProperties {
    *
    */
 
-  //final val SPARK_SYSTEM = "local[*]"
-  final val SPARK_SYSTEM = "spark://172.18.160.16:3090"
+  final val SPARK_SYSTEM = "local[*]"
+  //final val SPARK_SYSTEM = "spark://172.18.160.16:3090"
   final val SERIALIZER = "spark.serializer"
   final val KYRO_SERIALIZER = "org.apache.spark.serializer.KryoSerializer"
   final val WAREHOUSE = "spark.sql.warehouse.dir"

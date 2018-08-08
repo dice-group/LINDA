@@ -1,8 +1,6 @@
 package org.aksw.dice.linda.classificationRuleMining
 import org.apache.spark.sql.{ SparkSession, Encoder, _ }
 import org.apache.spark.ml.linalg.SQLDataTypes.VectorType
-import org.apache.jena.riot.Lang
-import net.sansa_stack.rdf.spark.io.rdf._
 import org.apache.spark.sql.functions._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.types._
@@ -13,6 +11,7 @@ import org.apache.spark.ml.linalg.Vectors
 
 import org.apache.spark.sql.expressions.Window
 import org.aksw.dice.linda.Utils.LINDAProperties._
+import org.aksw.dice.linda.Utils.TripleUtils
 
 object DatasetWriter {
 
@@ -27,7 +26,9 @@ object DatasetWriter {
       .appName(APP_DATASET_CREATER)
       .getOrCreate()
     val context = spark.sparkContext
-    val triplesDF = spark.read.rdf(Lang.NTRIPLES)(INPUT_DATASET)
+    val triplesDF =
+      spark.createDataFrame(spark.sparkContext.textFile("/Users/Kunal/Desktop/imdb.nt").filter(!_.startsWith("#")).map(data => TripleUtils.parsTriples(data)))
+
     RDF2TransactionMap.readFromDF(triplesDF)
     val convertToVector = udf((array: Seq[Int]) => {
       array.distinct.toArray.sortBy(a => a)
@@ -39,28 +40,31 @@ object DatasetWriter {
       .map(r => Row(r._2.map(a => a.toString()))), StructType(operatorIdSchema))
       .withColumn("operator", explode(col("resources")))
       .drop(col("resources"))
-      .groupBy("operator").count
-      
+      .groupBy("operator").agg(count("operator").as("support"))
+      .filter(col("support") >= 0.1)
       .withColumn("operatorId", row_number().over(Window.orderBy("operator")))
-     
 
     val arrayContains = udf((array: mutable.WrappedArray[Int], value: Int) => {
       array.toSeq.contains(value)
     })
 
-    val libsvmDataset = subjectOperatorMap.withColumn("operator", explode(col("operators")))
-      .join(operator2Id, "operator").groupBy(col("subject"), col("operators"))
+    val libsvmDataset = subjectOperatorMap
+      .withColumn("operator", explode(col("operators")))
+      .join(operator2Id, "operator")
+      .groupBy(col("subject"), col("operators"))
       .agg(collect_list(col("operatorId")).as("x")).drop("operators")
       .drop("subject")
       .withColumn("operatorsIds", convertToVector(col("x")))
-    // this.operator2Id.write.mode(SaveMode.Overwrite).parquet(OPERATOR_ID_MAP)
-    val numberofOperators = operator2Id.count().toInt
+
     val dataset = operator2Id.join(libsvmDataset, arrayContains(
       libsvmDataset.col("x"),
       operator2Id.col("operatorId")))
       .drop("x")
       .drop("operator")
 
+    //  operator2Id.write.mode(SaveMode.Overwrite).parquet(OPERATOR_ID_MAP)
+
+    val numberofOperators = operator2Id.count().toInt
     for (id <- 1 to 10) {
       val acceptedEntities = dataset.select("operatorsIds").where(col("operatorId") === id)
       if (acceptedEntities.count() != 0) {
@@ -77,8 +81,8 @@ object DatasetWriter {
           Row(1.0, Vectors.sparse(sizeOFVector, j.toArray, Array.fill[Double](j.size) { 1 }))
         }).union(nonAcceptedEntities.rdd.map(y => Row(-1.0, Vectors.sparse(
         sizeOFVector, y.getSeq[Int](0).distinct.toArray, Array.fill[Double](y.getSeq[Int](0).distinct.size) { 1 })))), struct)
-        .coalesce(1)
-        .write.format("libsvm").mode(SaveMode.Overwrite).save(LIBSVM_DATASET + id)
+        .coalesce(1).show(false)
+      //  .write.format("libsvm").mode(SaveMode.Overwrite).save(LIBSVM_DATASET + id)
 
     }
   }

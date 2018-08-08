@@ -4,8 +4,6 @@ import org.apache.spark.sql.{ SparkSession, Encoder, _ }
 import org.aksw.dice.linda.Utils.LINDAProperties._
 import org.apache.spark.sql.expressions.Window;
 import org.slf4j.LoggerFactory
-import org.apache.jena.riot.Lang
-import net.sansa_stack.rdf.spark.io.rdf._
 import org.apache.spark.ml.fpm.FPGrowth
 import scala.collection.mutable
 import org.apache.spark.sql.functions._
@@ -13,6 +11,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.types._
 import org.aksw.dice.linda.Utils.RDF2TransactionMap
 import org.aksw.dice.linda.Utils.LINDAProperties._
+import org.aksw.dice.linda.Utils.TripleUtils
 
 object EWSRuleMiner {
 
@@ -55,8 +54,8 @@ object EWSRuleMiner {
     def cleanString = udf((body: mutable.WrappedArray[String]) => {
       body.mkString("").replace("[", "").replace("]", "")
     })
-
-    val triplesDF = spark.createDataFrame(spark.sparkContext.textFile(INPUT_DATASET).filter(!_.startsWith("#")).map(data => TripleUtils.parsTriples(data)))
+    val triplesDF =
+      spark.createDataFrame(spark.sparkContext.textFile(INPUT_DATASET).filter(!_.startsWith("#")).map(data => TripleUtils.parsTriples(data)))
 
     println(DATASET_NAME + "::::  Number of Triples :  " + triplesDF.count())
 
@@ -151,32 +150,6 @@ object EWSRuleMiner {
       .option("delimiter", "\t").csv(FACTS_KB_EWS)
 
     spark.stop
-  }
-
-  object TripleUtils {
-
-    def parsTriples(parsData: String): Triples = {
-      val subRAngle = parsData.indexOf('>')
-      val predLAngle = parsData.indexOf('<', subRAngle + 1)
-      val predRAngle = parsData.indexOf('>', predLAngle + 1)
-      var objLAngle = parsData.indexOf('<', predRAngle + 1)
-      var objRAngle = parsData.indexOf('>', objLAngle + 1)
-
-      if (objRAngle == -1) {
-        objLAngle = parsData.indexOf('\"', objRAngle + 1)
-        objRAngle = parsData.indexOf('\"', objLAngle + 1)
-      }
-
-      val subject = parsData.substring(2, subRAngle)
-      val predicate = parsData.substring(predLAngle + 1, predRAngle)
-      val `object` = parsData.substring(objLAngle + 1, objRAngle)
-
-      Triples(subject, predicate, `object`)
-    }
-
-  }
-  case class Triples(subject: String, predicate: String, `object`: String) {
-    def isLangTag(resource: String) = resource.startsWith("@")
   }
 
 }
