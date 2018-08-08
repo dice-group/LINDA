@@ -23,7 +23,7 @@ object EWSRuleMiner {
       StructField("s", StringType, true) ::
       StructField("p", StringType, true) ::
       StructField("o", StringType, true) :: Nil)
-  var newFacts: DataFrame = _
+
   val resourceIdSchema = List(StructField("resource", StringType, true))
   val subjectOperatorMapSchema = List(
     StructField("subject", StringType, true),
@@ -56,21 +56,25 @@ object EWSRuleMiner {
       body.mkString("").replace("[", "").replace("]", "")
     })
 
-    val triplesDF = spark.read.rdf(Lang.NTRIPLES)(INPUT_DATASET)
+    val triplesDF = spark.createDataFrame(spark.sparkContext.textFile(INPUT_DATASET).filter(!_.startsWith("#")).map(data => TripleUtils.parsTriples(data)))
+
     println(DATASET_NAME + "::::  Number of Triples :  " + triplesDF.count())
 
     RDF2TransactionMap.readFromDF(triplesDF)
+
     val subjectOperatorMap = spark.createDataFrame(RDF2TransactionMap.subject2Operator
       .map(r => Row(r._1, r._2.map(a => a.toString()).distinct)), StructType(subjectOperatorMapSchema))
+
     val operatorSubjectMap = subjectOperatorMap
       .withColumn("operator", explode(col("operators"))).drop("operators")
       .groupBy(col("operator"))
       .agg(collect_list(col("subject")).as("subjects"))
+
     val removeEmpty = udf((array: Seq[String]) => !array.isEmpty)
-    this.newFacts = spark.createDataFrame(spark.sparkContext.emptyRDD[Row], resultSchema)
+
     fpgrowth.setItemsCol("items")
-      .setMinSupport(0.0)
-      .setMinConfidence(0.0)
+      .setMinSupport(0.005)
+      .setMinConfidence(0.6)
 
     val model = fpgrowth.fit(subjectOperatorMap.select(col("operators").as("items")))
     val originalRules = model.associationRules
@@ -147,6 +151,32 @@ object EWSRuleMiner {
       .option("delimiter", "\t").csv(FACTS_KB_EWS)
 
     spark.stop
+  }
+
+  object TripleUtils {
+
+    def parsTriples(parsData: String): Triples = {
+      val subRAngle = parsData.indexOf('>')
+      val predLAngle = parsData.indexOf('<', subRAngle + 1)
+      val predRAngle = parsData.indexOf('>', predLAngle + 1)
+      var objLAngle = parsData.indexOf('<', predRAngle + 1)
+      var objRAngle = parsData.indexOf('>', objLAngle + 1)
+
+      if (objRAngle == -1) {
+        objLAngle = parsData.indexOf('\"', objRAngle + 1)
+        objRAngle = parsData.indexOf('\"', objLAngle + 1)
+      }
+
+      val subject = parsData.substring(2, subRAngle)
+      val predicate = parsData.substring(predLAngle + 1, predRAngle)
+      val `object` = parsData.substring(objLAngle + 1, objRAngle)
+
+      Triples(subject, predicate, `object`)
+    }
+
+  }
+  case class Triples(subject: String, predicate: String, `object`: String) {
+    def isLangTag(resource: String) = resource.startsWith("@")
   }
 
 }
