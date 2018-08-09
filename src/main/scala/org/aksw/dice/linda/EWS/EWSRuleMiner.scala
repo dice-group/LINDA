@@ -39,6 +39,7 @@ object EWSRuleMiner {
       .config(SERIALIZER, KYRO_SERIALIZER)
       .appName(APP_EWS_MINER)
       .getOrCreate()
+
     val context = spark.sparkContext
 
     def getRuleSupport = udf((head: mutable.WrappedArray[String], body: mutable.WrappedArray[String], neg: mutable.WrappedArray[String]) => {
@@ -54,8 +55,10 @@ object EWSRuleMiner {
     def cleanString = udf((body: mutable.WrappedArray[String]) => {
       body.mkString("").replace("[", "").replace("]", "")
     })
+    //("/Users/Kunal/workspaceThesis/LINDA/Data/rdf.nt"
     val triplesDF =
-      spark.createDataFrame(spark.sparkContext.textFile(INPUT_DATASET).filter(!_.startsWith("#")).map(data => TripleUtils.parsTriples(data)))
+      spark.createDataFrame(spark.sparkContext.textFile(INPUT_DATASET)
+        .filter(!_.startsWith("#")).map(data => TripleUtils.parsTriples(data)))
 
     println(DATASET_NAME + "::::  Number of Triples :  " + triplesDF.count())
 
@@ -65,7 +68,8 @@ object EWSRuleMiner {
       .map(r => Row(r._1, r._2.map(a => a.toString()).distinct)), StructType(subjectOperatorMapSchema))
 
     val operatorSubjectMap = subjectOperatorMap
-      .withColumn("operator", explode(col("operators"))).drop("operators")
+      .withColumn("operator", explode(col("operators")))
+      .drop("operators")
       .groupBy(col("operator"))
       .agg(collect_list(col("subject")).as("subjects"))
 
@@ -110,11 +114,7 @@ object EWSRuleMiner {
       .drop("subject")
       .drop("setdiff")
 
-    val operatorSupportDF = rulesWithFactsDF.groupBy("antecedent", "consequent", "operator") // get operator support
-      .agg(count("operator").as("support"))
-
     val EWSWithFactsDF = rulesWithFactsDF
-      .join(operatorSupportDF, Seq("antecedent", "consequent", "operator"))
       .join(operatorSubjectMap, "operator")
       .withColumnRenamed("subjects", "operatorSet")
       .withColumn("RuleSupport", getRuleSupport(
@@ -130,12 +130,12 @@ object EWSRuleMiner {
       .withColumn("s", explode(col("newFacts")))
       .withColumn("po", explode(col("consequent")))
       .withColumn("pred", cleanString(col("consequent")))
-      .withColumn("_tmp", split(col("pred"), "\\,"))
-      .select(
-        col("confidence"),
+      .withColumn("_tmp", split(col("pred"), "\\,")).select(
         concat(lit("<"), col("s"), lit(">")),
         col("_tmp").getItem(0).as("p"),
         col("_tmp").getItem(1).as("o"))
+
+    facts.show(false)
 
     val finalRules = EWSWithFactsDF.select(col("antecedent"), col("operator").as("negation"),
       col("consequent"), col("confidence"))
