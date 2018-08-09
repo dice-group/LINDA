@@ -59,8 +59,8 @@ object EWSRuleMiner {
     val triplesDF =
       spark.createDataFrame(spark.sparkContext.textFile(INPUT_DATASET)
         .filter(!_.startsWith("#")).map(data => TripleUtils.parsTriples(data)))
-
-    println(DATASET_NAME + "::::  Number of Triples :  " + triplesDF.count())
+    val numberofTriples = triplesDF.count()
+    println(DATASET_NAME + "::::  Number of Triples :  " + numberofTriples)
 
     RDF2TransactionMap.readFromDF(triplesDF)
 
@@ -76,8 +76,8 @@ object EWSRuleMiner {
     val removeEmpty = udf((array: Seq[String]) => !array.isEmpty)
 
     fpgrowth.setItemsCol("items")
-      .setMinSupport(0.005)
-      .setMinConfidence(0.6)
+      .setMinSupport(0.03)
+      .setMinConfidence(0.4)
 
     val model = fpgrowth.fit(subjectOperatorMap.select(col("operators").as("items")))
     val originalRules = model.associationRules
@@ -114,7 +114,12 @@ object EWSRuleMiner {
       .drop("subject")
       .drop("setdiff")
 
+    val operatorSupportDF = rulesWithFactsDF.groupBy("antecedent", "consequent", "operator") // get operator support
+      .agg(count("operator").as("support"))
+      .filter(col("support") >= 0.1 * numberofTriples)
+
     val EWSWithFactsDF = rulesWithFactsDF
+      .join(operatorSupportDF, Seq("antecedent", "consequent", "operator"))
       .join(operatorSubjectMap, "operator")
       .withColumnRenamed("subjects", "operatorSet")
       .withColumn("RuleSupport", getRuleSupport(
