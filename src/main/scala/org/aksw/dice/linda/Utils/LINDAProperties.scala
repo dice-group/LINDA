@@ -6,7 +6,7 @@ object LINDAProperties {
   */
   //
   //TODO: Add Other datasets
-  final val DATASET_NAME = "imdb"
+  final val DATASET_NAME = "wordnet-mlj12-train"
   final val HDFS_MASTER = "hdfs://172.18.160.17:54310/KunalJha/"
 
   final val INPUT_DATASET = HDFS_MASTER + DATASET_NAME + ".nt"
@@ -37,6 +37,7 @@ object LINDAProperties {
   final val SERIALIZER = "spark.serializer"
   final val KYRO_SERIALIZER = "org.apache.spark.serializer.KryoSerializer"
   final val WAREHOUSE = "spark.sql.warehouse.dir"
+
   final val APP_DATASET_CREATER = "LINDA (Data Set Creater)"
   final val APP_EWS_MINER = "LINDA  (EWS Miner)"
   final val APP_DT_MINER = "LINDA (DT Miner)"

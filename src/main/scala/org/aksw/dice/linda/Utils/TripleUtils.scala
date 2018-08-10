@@ -14,9 +14,9 @@ object TripleUtils {
       objRAngle = parsData.indexOf('\"', objLAngle + 1)
     }
 
-    val subject = parsData.substring(1, subRAngle)
-    val predicate = parsData.substring(predLAngle + 1, predRAngle)
-    val `object` = parsData.substring(objLAngle + 1, objRAngle)
+    val subject = parsData.substring(0, subRAngle +1)
+    val predicate = parsData.substring(predLAngle, predRAngle + 1)
+    val `object` = parsData.substring(objLAngle + 1, objRAngle + 1)
 
     Triples(subject, predicate, `object`)
   }
