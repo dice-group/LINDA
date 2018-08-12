@@ -12,6 +12,7 @@ import org.apache.spark.sql.types._
 
 import org.aksw.dice.linda.Utils.LINDAProperties._
 import org.aksw.dice.linda.Utils.TripleUtils
+import org.aksw.dice.linda.Utils.LINDAProperties
 
 object EWSRuleMiner {
 
@@ -26,6 +27,15 @@ object EWSRuleMiner {
     val fpgrowth = new FPGrowth()
 
     val context = spark.sparkContext
+
+    if (args.length == 0) {
+      println("No Parameters provided")
+      spark.stop()
+    }
+
+    LINDAProperties.DATASET_NAME = args(0)
+    LINDAProperties.INPUT_DATASET = args(1)
+    LINDAProperties.HDFS_MASTER = args(2)
 
     def getRuleSupport = udf((head: mutable.WrappedArray[String], body: mutable.WrappedArray[String], neg: mutable.WrappedArray[String]) => {
       head.intersect(body).intersect(neg).size
@@ -134,13 +144,13 @@ object EWSRuleMiner {
       col("consequent"), col("confidence"))
 
     println("Number of Exceptions" + finalRules.count())
-
+    /*
     println("Number of Facts " + facts.count())
     finalRules.distinct.write.mode(SaveMode.Overwrite).json(EWS_RULES_JSON)
     facts.write.mode(SaveMode.Overwrite)
       .option("header", "false")
       .option("delimiter", "\t").csv(FACTS_KB_EWS)
-
+*/
     spark.stop
   }
 

@@ -6,16 +6,16 @@ object LINDAProperties {
   */
   //
   //TODO: Add Other datasets
-  final val DATASET_NAME = "wordnet-mlj12-train"
-  final val HDFS_MASTER = "hdfs://172.18.160.17:54310/KunalJha/"
-
-  final val INPUT_DATASET = HDFS_MASTER + DATASET_NAME + ".nt"
+  var DATASET_NAME: String = _
+  var HDFS_MASTER: String = _
+  var INPUT_DATASET: String = _
 
   final val INPUT_DATASET_SUBJECT_OPERATOR_MAP = HDFS_MASTER + DATASET_NAME + "/Maps/SubjectOperatorMap/"
   final val OPERATOR_ID_MAP = HDFS_MASTER + DATASET_NAME + "/Maps/OperatorId/parquet"
   final val INPUT_DATASET_OPERATOR_SUBJECT_MAP = HDFS_MASTER + DATASET_NAME + "/Maps/OperatorSubjectMap/parquet"
 
-  /*
+  /*"hdfs://172.18.160.17:54310/KunalJha/"
+   * "wordnet-mlj12-train"
    * LINDA CONFIGS
    */
   final val EWS_RULES_JSON = HDFS_MASTER + "EWS/" + DATASET_NAME + "/Rules/ewsrules"
