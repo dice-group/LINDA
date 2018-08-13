@@ -44,9 +44,9 @@ object DTRuleMiner {
       .appName(APP_DT_MINER)
       .getOrCreate()
 
-    this.operatorSubjectMap = spark.read.format("parquet").load(INPUT_DATASET_OPERATOR_SUBJECT_MAP)
+    // this.operatorSubjectMap = spark.read.format("parquet").load(INPUT_DATASET_OPERATOR_SUBJECT_MAP)
     this.newFacts = spark.createDataFrame(spark.sparkContext.emptyRDD[Row], resultSchema)
-    this.operator2Id = spark.read.format("parquet").load(OPERATOR_ID_MAP)
+    //this.operator2Id = spark.read.format("parquet").load(OPERATOR_ID_MAP)
     this.finalrules = spark.createDataFrame(spark.sparkContext.emptyRDD[Row], ruleSchema)
     val path = new Path(DT_INPUT_DATASET)
     val files = path.getFileSystem(new Configuration()).listFiles(path, true)
