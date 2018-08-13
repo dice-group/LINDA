@@ -27,8 +27,15 @@ object EWSRuleMiner {
       spark.stop()
     }
 
-    DATASET_NAME = args(0)
-    HDFS_MASTER = args(1)
+    var DATASET_NAME = args(0)
+    var HDFS_MASTER = args(1)
+
+    var EWS_FACTS_WITH_RULES = HDFS_MASTER + "EWS/" + DATASET_NAME + "/EWSfactswithRules/"
+    var EWS_RULES = HDFS_MASTER + "EWS/" + DATASET_NAME + "/Rules/"
+
+    var INPUT_DATASET_SUBJECT_OPERATOR_MAP = HDFS_MASTER + DATASET_NAME + "/Maps/SubjectOperatorMap/"
+    var INPUT_DATASET_OPERATOR_SUBJECT_MAP = HDFS_MASTER + DATASET_NAME + "/Maps/OperatorSubjectMap/"
+    var HORN_RULES = HDFS_MASTER + DATASET_NAME + "/Rules/"
 
     val hornRules = spark.read.json(HORN_RULES)
     val operatorSubjectMap = spark.read.json(INPUT_DATASET_OPERATOR_SUBJECT_MAP)
@@ -94,14 +101,11 @@ object EWSRuleMiner {
       col("consequent"), col("confidence"))
 
     println("Number of Exceptions " + finalRules.count())
-    finalRules.show(false)
 
     EWSWithFactsDF.write.mode(SaveMode.Overwrite).json(EWS_FACTS_WITH_RULES)
-    /*
 
- finalRules.distinct.write.mode(SaveMode.Overwrite).json(EWS_RULES_JSON)
+    finalRules.distinct.write.mode(SaveMode.Overwrite).json(EWS_RULES)
 
-*/
     spark.stop
   }
 

@@ -43,7 +43,17 @@ object DTRuleMiner {
       .config(SERIALIZER, KYRO_SERIALIZER)
       .appName(APP_DT_MINER)
       .getOrCreate()
+    if (args.length == 0) {
+      println("No Parameters provided")
+      spark.stop()
+    }
 
+    var DATASET_NAME = args(0)
+    var HDFS_MASTER = args(1)
+
+    var DT_RULES_JSON = HDFS_MASTER + "DT/" + DATASET_NAME + "/Rules/Json"
+    var FACTS_KB_DT = HDFS_MASTER + "DT/" + DATASET_NAME + "/Facts"
+    var DT_INPUT_DATASET = HDFS_MASTER + "DTAlgo/FinalData/"
     // this.operatorSubjectMap = spark.read.format("parquet").load(INPUT_DATASET_OPERATOR_SUBJECT_MAP)
     this.newFacts = spark.createDataFrame(spark.sparkContext.emptyRDD[Row], resultSchema)
     //this.operator2Id = spark.read.format("parquet").load(OPERATOR_ID_MAP)

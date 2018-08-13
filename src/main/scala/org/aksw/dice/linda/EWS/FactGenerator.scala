@@ -23,8 +23,10 @@ object FactGenerator {
       spark.stop()
     }
 
-    DATASET_NAME = args(0)
-    HDFS_MASTER = args(1)
+    var DATASET_NAME = args(0)
+    var HDFS_MASTER = args(1)
+    var EWS_FACTS_WITH_RULES = HDFS_MASTER + "EWS/" + DATASET_NAME + "/EWSfactswithRules/"
+    var FACTS_KB_EWS = HDFS_MASTER + "EWS/" + DATASET_NAME + "/Facts/"
 
     def cleanString = udf((body: mutable.WrappedArray[String]) => {
       body.mkString("").replace("[", "").replace("]", "")
@@ -44,9 +46,9 @@ object FactGenerator {
       .select(col("confidence"), col("triple"))
 
     println("Number of Facts " + facts.count())
-    /*facts.write.mode(SaveMode.Overwrite)
+    facts.write.mode(SaveMode.Overwrite)
       .option("header", "false")
-      .option("delimiter", "\t").csv(FACTS_KB_EWS)*/
+      .option("delimiter", "\t").csv(FACTS_KB_EWS)
 
     spark.stop
   }
