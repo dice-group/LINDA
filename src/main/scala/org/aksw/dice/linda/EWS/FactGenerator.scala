@@ -22,23 +22,25 @@ object FactGenerator {
       println("No Parameters provided")
       spark.stop()
     }
-
+    def getFacts = udf((body: mutable.WrappedArray[String], neg: mutable.WrappedArray[String]) => {
+      body.intersect(neg)
+    })
     var DATASET_NAME = args(0)
     var HDFS_MASTER = args(1)
     var EWS_FACTS_WITH_RULES = HDFS_MASTER + "EWS/" + DATASET_NAME + "/EWSfactswithRules/"
     var FACTS_KB_EWS = HDFS_MASTER + "EWS/" + DATASET_NAME + "/Facts/"
-
     def cleanString = udf((body: mutable.WrappedArray[String]) => {
       body.mkString("").replace("[", "").replace("]", "")
     })
 
     val EWSWithFactsDF = spark.read.json(EWS_FACTS_WITH_RULES)
     val facts = EWSWithFactsDF
+      .withColumn("newFacts", getFacts(col("bodySet"), col("operatorSet")))
       .select(col("consequent"), col("newFacts"), col("confidence"))
       .withColumn("s", explode(col("newFacts")))
       .withColumn("po", explode(col("consequent")))
       .withColumn("pred", cleanString(col("consequent")))
-      .withColumn("_tmp", split(col("pred"), "\\,"))
+      .withColumn("_tmp", split(col("pred"), "\\::"))
       .withColumn("triple", concat(
         col("s"), lit(" "),
         col("_tmp").getItem(0).as("p"), lit(" "),

@@ -48,10 +48,6 @@ object EWSRuleMiner {
       body.intersect(neg).size
     })
 
-    def getFacts = udf((body: mutable.WrappedArray[String], neg: mutable.WrappedArray[String]) => {
-      body.intersect(neg)
-    })
-
     val setDiff = udf((head: mutable.WrappedArray[String], body: mutable.WrappedArray[String]) => {
       body.diff(head)
 
@@ -64,11 +60,15 @@ object EWSRuleMiner {
     // val operatorSupport = 0.03 * numberofTriples
 
     val rulesWithFactsDF = hornRules
-      .join(operatorSubjectMap, hornRules("body") === operatorSubjectMap("operator"))
+      .join(
+        operatorSubjectMap,
+        hornRules.col("body") === operatorSubjectMap.col("operator"))
       .withColumnRenamed("facts", "bodySet")
       .select("antecedent", "consequent", "bodySet")
       .join(hornRules
-        .join(operatorSubjectMap, hornRules("head") === operatorSubjectMap("operator"))
+        .join(
+          operatorSubjectMap,
+          hornRules.col("head") === operatorSubjectMap.col("operator"))
         .withColumnRenamed("facts", "headSet")
         .select("antecedent", "consequent", "headSet"), Seq("antecedent", "consequent")) // Fact List
       .withColumn("setDiff", setDiff(col("headSet"), col("bodySet"))) // Difference in facts between body and head
@@ -81,12 +81,7 @@ object EWSRuleMiner {
       .drop("subject")
       .drop("setdiff")
 
-    /*    val operatorSupportDF = rulesWithFactsDF.groupBy("antecedent", "consequent", "operator") // get operator support
-      .agg(count("operator").as("support"))
-      .filter(col("support") >= operatorSupport)
-*/
     val EWSWithFactsDF = rulesWithFactsDF
-      // .join(operatorSupportDF, Seq("antecedent", "consequent", "operator"))
       .join(operatorSubjectMap, "operator")
       .withColumnRenamed("facts", "operatorSet")
       .withColumn("RuleSupport", getRuleSupport(
@@ -95,7 +90,6 @@ object EWSRuleMiner {
       .withColumn("BodySupport", getBodySupport(col("bodySet"), col("operatorSet")))
       .withColumn("confidence", col("RuleSupport").divide(col("BodySupport")))
       .filter(col("confidence") >= 0.01)
-      .withColumn("newFacts", getFacts(col("bodySet"), col("operatorSet")))
 
     val finalRules = EWSWithFactsDF.select(col("antecedent"), col("operator").as("negation"),
       col("consequent"), col("confidence"))

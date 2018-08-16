@@ -38,7 +38,7 @@ object DatasetParser {
         .filter(!_.startsWith("#")).map(data => TripleUtils.parsTriples(data)))
         .withColumn(
           "unaryOperator",
-          concat(col("predicate"), lit(",<"), col("object")))
+          concat(col("predicate"), lit("::<"), col("object")))
 
     println(DATASET_NAME + "::::  Number of Triples :  " + triplesDF.count())
 
@@ -51,11 +51,15 @@ object DatasetParser {
     subjectOperatorMap.write.mode(SaveMode.Overwrite).json(INPUT_DATASET_SUBJECT_OPERATOR_MAP)
     operatorSubjectMap.write.mode(SaveMode.Overwrite).json(INPUT_DATASET_OPERATOR_SUBJECT_MAP)
 
-    // NOT TO BE EXECUTED FOR DT
+    /*
+     * HORN RULE MINER
+     *  NOT TO BE EXECUTED FOR DT
+     
     val fpgrowth = new FPGrowth().setItemsCol("items")
       .setMinSupport(0.01)
       .setMinConfidence(0.01)
-    val model = fpgrowth.fit(subjectOperatorMap.select(col("operators").as("items")))
+    val model = fpgrowth.fit(subjectOperatorMap
+        .select(col("operators").as("items")))
 
     val originalRules = model.associationRules
     println("Number of ORiginal Rules " + originalRules.count())
@@ -68,7 +72,7 @@ object DatasetParser {
     hornRules.write.mode(SaveMode.Overwrite).json(HORN_RULES)
 
     //END OF HORN RULE Miner
-
+*/
     spark.stop
 
   }
