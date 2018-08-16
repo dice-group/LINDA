@@ -28,6 +28,13 @@ Submit jobs in spark by going to the spark directory and executing the following
 ./bin/spark-submit --class org.aksw.dice.linda.EWS.FactGenerator --master <Master url> <location to jar >/LINDA-0.1.0.jar <dataset name> "<hdfs cluster url>"
 ```
 
+```
+./bin/spark-submit --class org.aksw.dice.linda.classificationRuleMining.DTRuleMiner --master <Master url> <location to jar >/LINDA-0.1.0.jar <dataset name> "<hdfs cluster url>"
+```
+
+```
+./bin/spark-submit --class org.aksw.dice.linda.classificationRuleMining.DTFactGenerator --master <Master url> <location to jar >/LINDA-0.1.0.jar <dataset name> "<hdfs cluster url>"
+```
 ## Deployment
 
 Add additional notes about how to deploy this on a live system
