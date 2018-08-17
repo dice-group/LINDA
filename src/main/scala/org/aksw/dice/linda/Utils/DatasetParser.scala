@@ -53,12 +53,12 @@ object DatasetParser {
     /*
      * HORN RULE MINER
      *  NOT TO BE EXECUTED FOR DT
-
+*/
     val fpgrowth = new FPGrowth().setItemsCol("items")
-      .setMinSupport(0.01)
-      .setMinConfidence(0.01)
+      .setMinSupport(0.05)
+      .setMinConfidence(0.6)
     val model = fpgrowth.fit(subjectOperatorMap
-        .select(col("operators").as("items")))
+      .select(col("operators").as("items")))
 
     val originalRules = model.associationRules
     println("Number of ORiginal Rules " + originalRules.count())
@@ -71,7 +71,7 @@ object DatasetParser {
     hornRules.write.mode(SaveMode.Overwrite).json(HORN_RULES)
 
     //END OF HORN RULE Miner
-*/
+
     spark.stop
 
   }

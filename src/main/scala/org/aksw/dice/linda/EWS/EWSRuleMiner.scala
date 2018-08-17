@@ -50,7 +50,7 @@ object EWSRuleMiner {
     })
     def removeEmpty = udf((array: Seq[String]) => !array.isEmpty)
 
-    val operatorSupport = 0.03 * operatorSubjectMap.count
+    val operatorSupport = 0.05 * operatorSubjectMap.count
 
     val rulesWithFactsDF = hornRules
       .join(
