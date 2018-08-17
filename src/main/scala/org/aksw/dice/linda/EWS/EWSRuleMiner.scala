@@ -41,13 +41,6 @@ object EWSRuleMiner {
     val operatorSubjectMap = spark.read.json(INPUT_DATASET_OPERATOR_SUBJECT_MAP)
     val subjectOperatorMap = spark.read.json(INPUT_DATASET_SUBJECT_OPERATOR_MAP)
 
-    def getRuleSupport = udf((head: mutable.WrappedArray[String], body: mutable.WrappedArray[String], neg: mutable.WrappedArray[String]) => {
-      head.intersect(body).intersect(neg).size
-    })
-    def getBodySupport = udf((body: mutable.WrappedArray[String], neg: mutable.WrappedArray[String]) => {
-      body.intersect(neg).size
-    })
-
     val setDiff = udf((head: mutable.WrappedArray[String], body: mutable.WrappedArray[String]) => {
       body.diff(head)
 
@@ -57,7 +50,7 @@ object EWSRuleMiner {
     })
     def removeEmpty = udf((array: Seq[String]) => !array.isEmpty)
 
-    // val operatorSupport = 0.03 * numberofTriples
+    val operatorSupport = 0.03 * operatorSubjectMap.count
 
     val rulesWithFactsDF = hornRules
       .join(
@@ -71,25 +64,24 @@ object EWSRuleMiner {
           hornRules.col("head") === operatorSubjectMap.col("operator"))
         .withColumnRenamed("facts", "headSet")
         .select("antecedent", "consequent", "headSet"), Seq("antecedent", "consequent")) // Fact List
+
       .withColumn("setDiff", setDiff(col("headSet"), col("bodySet"))) // Difference in facts between body and head
       .filter(removeEmpty(col("setDiff"))) // Not consider rules which don't have this difference
       .withColumn("subject", explode(col("setDiff")))
       .join(subjectOperatorMap, "subject")
+
       .filter(filterBody(col("operators"), col("antecedent"))) // Get operators corresponding to the
       .withColumn("operator", explode(col("operators")))
       .drop("operators")
       .drop("subject")
       .drop("setdiff")
-
+    val operatorSupportDF = rulesWithFactsDF.groupBy("antecedent", "consequent", "operator") // get operator support
+      .agg(count("operator").as("support"))
+      .filter(col("support") >= operatorSupport)
     val EWSWithFactsDF = rulesWithFactsDF
+      .join(operatorSupportDF, Seq("antecedent", "consequent", "operator"))
       .join(operatorSubjectMap, "operator")
       .withColumnRenamed("facts", "operatorSet")
-      .withColumn("RuleSupport", getRuleSupport(
-        col("headSet"),
-        col("bodySet"), col("operatorSet")))
-      .withColumn("BodySupport", getBodySupport(col("bodySet"), col("operatorSet")))
-      .withColumn("confidence", col("RuleSupport").divide(col("BodySupport")))
-      .filter(col("confidence") >= 0.01)
 
     val finalRules = EWSWithFactsDF.select(col("antecedent"), col("operator").as("negation"),
       col("consequent"), col("confidence"))

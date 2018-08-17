@@ -25,6 +25,12 @@ object FactGenerator {
     def getFacts = udf((body: mutable.WrappedArray[String], neg: mutable.WrappedArray[String]) => {
       body.intersect(neg)
     })
+    def getRuleSupport = udf((head: mutable.WrappedArray[String], body: mutable.WrappedArray[String], neg: mutable.WrappedArray[String]) => {
+      head.intersect(body).intersect(neg).size
+    })
+    def getBodySupport = udf((body: mutable.WrappedArray[String], neg: mutable.WrappedArray[String]) => {
+      body.intersect(neg).size
+    })
     var DATASET_NAME = args(0)
     var HDFS_MASTER = args(1)
     var EWS_FACTS_WITH_RULES = HDFS_MASTER + "EWS/" + DATASET_NAME + "/EWSfactswithRules/"
@@ -34,6 +40,14 @@ object FactGenerator {
     })
 
     val EWSWithFactsDF = spark.read.json(EWS_FACTS_WITH_RULES)
+      .withColumn("RuleSupport", getRuleSupport(
+        col("headSet"),
+        col("bodySet"), col("operatorSet")))
+      .withColumn("BodySupport", getBodySupport(col("bodySet"), col("operatorSet")))
+      .withColumn("confidence", col("RuleSupport").divide(col("BodySupport")))
+      .filter(col("confidence") >= 0.01)
+      
+      
     val facts = EWSWithFactsDF
       .withColumn("newFacts", getFacts(col("bodySet"), col("operatorSet")))
       .select(col("consequent"), col("newFacts"), col("confidence"))

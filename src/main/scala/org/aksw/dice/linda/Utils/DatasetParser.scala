@@ -32,7 +32,6 @@ object DatasetParser {
     var INPUT_DATASET_OPERATOR_SUBJECT_MAP = HDFS_MASTER + DATASET_NAME + "/Maps/OperatorSubjectMap/"
     var HORN_RULES = HDFS_MASTER + DATASET_NAME + "/Rules/"
 
-    // "/Users/Kunal/Desktop/imdb.nt" (
     val triplesDF =
       spark.createDataFrame(spark.sparkContext.textFile(INPUT_DATASET)
         .filter(!_.startsWith("#")).map(data => TripleUtils.parsTriples(data)))
@@ -54,7 +53,7 @@ object DatasetParser {
     /*
      * HORN RULE MINER
      *  NOT TO BE EXECUTED FOR DT
-     
+
     val fpgrowth = new FPGrowth().setItemsCol("items")
       .setMinSupport(0.01)
       .setMinConfidence(0.01)
