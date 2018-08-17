@@ -84,7 +84,7 @@ object EWSRuleMiner {
       .withColumnRenamed("facts", "operatorSet")
 
     val finalRules = EWSWithFactsDF.select(col("antecedent"), col("operator").as("negation"),
-      col("consequent"), col("confidence"))
+      col("consequent"))
 
     println("Number of Exceptions " + finalRules.count())
 
