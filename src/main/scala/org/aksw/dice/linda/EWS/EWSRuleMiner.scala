@@ -52,34 +52,43 @@ object EWSRuleMiner {
 
     val operatorSupport = 0.05 * operatorSubjectMap.count
 
-    val rulesWithFactsDF = hornRules
+    val bodyFacts = hornRules
       .join(
         operatorSubjectMap,
         hornRules.col("body") === operatorSubjectMap.col("operator"))
       .withColumnRenamed("facts", "bodySet")
       .select("antecedent", "consequent", "bodySet")
-      .join(hornRules
-        .join(
-          operatorSubjectMap,
-          hornRules.col("head") === operatorSubjectMap.col("operator"))
-        .withColumnRenamed("facts", "headSet")
-        .select("antecedent", "consequent", "headSet"), Seq("antecedent", "consequent")) // Fact List
+      .repartition(1)
+    val headFacts = hornRules.join(
+      operatorSubjectMap,
+      hornRules.col("head") === operatorSubjectMap.col("operator"))
+      .withColumnRenamed("facts", "headSet")
+      .select("antecedent", "consequent", "headSet").repartition(1)
+
+    val allFacts = bodyFacts.join(headFacts, Seq("antecedent", "consequent"))
       .withColumn("setDiff", setDiff(col("headSet"), col("bodySet"))) // Difference in facts between body and head
       .filter(removeEmpty(col("setDiff"))) // Not consider rules which don't have this difference
-      .withColumn("subject", explode(col("setDiff")))
-      .join(subjectOperatorMap, "subject")
+      .withColumn("subject", explode(col("setDiff"))).repartition(1)
+
+    val rulesWithFactsDF = allFacts.join(subjectOperatorMap, "subject")
       .filter(filterBody(col("operators"), col("antecedent"))) // Get operators corresponding to the
       .withColumn("operator", explode(col("operators")))
       .drop("operators")
       .drop("subject")
       .drop("setdiff")
-    val temp = rulesWithFactsDF.repartition(1)
-    val operatorSupportDF = temp.groupBy("antecedent", "consequent", "operator") // get operator support
+      .repartition(1)
+    // Fact List
+
+    val operatorSupportDF = rulesWithFactsDF.groupBy("antecedent", "consequent", "operator") // get operator support
       .agg(count("operator").as("support"))
       .filter(col("support") >= operatorSupport)
-    val EWSWithFactsDF = temp
+      .repartition(1)
+
+    val EWSWithFactsDFFiltered = rulesWithFactsDF
       .join(operatorSupportDF, Seq("antecedent", "consequent", "operator"))
-      .join(operatorSubjectMap, "operator")
+      .repartition(1)
+
+    val EWSWithFactsDF = EWSWithFactsDFFiltered.join(operatorSubjectMap, "operator")
       .withColumnRenamed("facts", "operatorSet")
 
     val finalRules = EWSWithFactsDF.select(col("antecedent"), col("operator").as("negation"),

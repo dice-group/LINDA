@@ -70,6 +70,7 @@ object DatasetParser {
       .withColumn("head", explode(col("consequent")))
     hornRules.write.mode(SaveMode.Overwrite).json(HORN_RULES)
 
+    
     //END OF HORN RULE Miner
 
     spark.stop
