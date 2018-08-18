@@ -46,7 +46,7 @@ object DatasetParser {
     val operatorSubjectMap = triplesDF.groupBy(col("unaryOperator"))
       .agg(collect_set(col("subject")).as("facts"))
       .withColumnRenamed("unaryOperator", "operator")
-    println("WRITING TOOO  :     " + INPUT_DATASET_OPERATOR_SUBJECT_MAP)
+    
     subjectOperatorMap.write.mode(SaveMode.Overwrite).json(INPUT_DATASET_SUBJECT_OPERATOR_MAP)
     operatorSubjectMap.write.mode(SaveMode.Overwrite).json(INPUT_DATASET_OPERATOR_SUBJECT_MAP)
 
@@ -69,8 +69,6 @@ object DatasetParser {
       .withColumn("body", explode(col("antecedent")))
       .withColumn("head", explode(col("consequent")))
     hornRules.write.mode(SaveMode.Overwrite).json(HORN_RULES)
-
-    
     //END OF HORN RULE Miner
 
     spark.stop
