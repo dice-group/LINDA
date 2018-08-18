@@ -90,15 +90,11 @@ object EWSRuleMiner {
 
     val EWSWithFactsDF = EWSWithFactsDFFiltered.join(operatorSubjectMap, "operator")
       .withColumnRenamed("facts", "operatorSet")
-
     val finalRules = EWSWithFactsDF.select(col("antecedent"), col("operator").as("negation"),
       col("consequent"))
-
     println("Number of Exceptions " + finalRules.count())
-
-    EWSWithFactsDF.write.mode(SaveMode.Overwrite).json(EWS_FACTS_WITH_RULES)
-
-    finalRules.distinct.write.mode(SaveMode.Overwrite).json(EWS_RULES)
+    finalRules.write.mode(SaveMode.Overwrite).json(EWS_RULES)
+    EWSWithFactsDF.coalesce(1).write.mode(SaveMode.Overwrite).json(EWS_FACTS_WITH_RULES)
 
     spark.stop
   }
