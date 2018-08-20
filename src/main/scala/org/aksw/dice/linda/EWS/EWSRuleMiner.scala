@@ -38,7 +38,7 @@ object EWSRuleMiner {
     var HORN_RULES = HDFS_MASTER + DATASET_NAME + "/Rules/"
 
     val hornRules = spark.read.json(HORN_RULES).repartition(1)
-    val operatorSubjectMap = spark.read.json(INPUT_DATASET_OPERATOR_SUBJECT_MAP).repartition(1)
+    val operatorSubjectMap = spark.read.json(INPUT_DATASET_OPERATOR_SUBJECT_MAP).repartition(1).cache()
     val subjectOperatorMap = spark.read.json(INPUT_DATASET_SUBJECT_OPERATOR_MAP).repartition(1)
 
     val setDiff = udf((head: mutable.WrappedArray[String], body: mutable.WrappedArray[String]) => {
@@ -68,7 +68,7 @@ object EWSRuleMiner {
     val allFacts = bodyFacts.join(headFacts, Seq("antecedent", "consequent"))
       .withColumn("setDiff", setDiff(col("headSet"), col("bodySet"))) // Difference in facts between body and head
       .filter(removeEmpty(col("setDiff"))) // Not consider rules which don't have this difference
-      .withColumn("subject", explode(col("setDiff"))).repartition(1)
+      .withColumn("subject", explode(col("setDiff"))).repartition(5)
 
     val rulesWithFactsDF = allFacts.join(subjectOperatorMap, "subject")
       .filter(filterBody(col("operators"), col("antecedent"))) // Get operators corresponding to the
@@ -76,17 +76,18 @@ object EWSRuleMiner {
       .drop("operators")
       .drop("subject")
       .drop("setdiff")
-      .repartition(1)
+      .repartition(5)
     // Fact List
 
+   
     val operatorSupportDF = rulesWithFactsDF.groupBy("antecedent", "consequent", "operator") // get operator support
       .agg(count("operator").as("support"))
       .filter(col("support") >= operatorSupport)
-      .repartition(1)
+      .repartition(5)
 
     val EWSWithFactsDFFiltered = rulesWithFactsDF
       .join(operatorSupportDF, Seq("antecedent", "consequent", "operator"))
-      .repartition(1)
+      .repartition(5)
 
     val EWSWithFactsDF = EWSWithFactsDFFiltered.join(operatorSubjectMap, "operator")
       .withColumnRenamed("facts", "operatorSet")

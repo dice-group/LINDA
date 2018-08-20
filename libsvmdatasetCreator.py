@@ -1,4 +1,6 @@
 import collections
+from multiprocessing import Pool
+import multiprocessing
 
 operators = list()
 subject = list()
@@ -6,6 +8,14 @@ subjectOperatorMap = {}
 operator2Id = collections.OrderedDict()
 i = 1
 
+def process_files(operator):
+    with open("/Users/Kunal/workspaceThesis/LINDA/Data/rdf/LIBSVM/" + str(operator2Id[operator]) +".libsvm", "a") as libfile:
+        for subject, operatorList in subjectOperatorMap.iteritems():
+            if operator in operatorList:
+                libfile.write(construct_line("+1", [operator2Id[item] for item in operatorList if operator2Id[item] !=operator] ))
+            else:
+                libfile.write(construct_line("-1", [operator2Id[item] for item in operatorList]))
+    libfile.close
 
 def construct_line(label, input):
     new_line = [label]
@@ -22,22 +32,21 @@ with open("/Users/Kunal/workspaceThesis/LINDA/Data/rdf.nt") as f:
     for line in f:
         data = line.split(" ")
         operator = data[1] + "::" + data[2]
-        if operator not in operator2Id:
+        if operator not in operator2Id.iteritems():
             operator2Id[operator] = i
             i += 1
         subjectOperatorMap.setdefault(data[0], []).append(operator)
 
+
 with open('/Users/Kunal/workspaceThesis/LINDA/Data/rdf/operator2Id.csv', 'w') as mapfile:
-    for operator, id in operator2Id.iteritems():
+    for  operator, id in operator2Id.iteritems():
         mapfile.write( operator +"," +str(id)+"\n")
-    mapfile.close
+mapfile.close
 
 
-for operator, id in operator2Id.iteritems():
-   with open("/Users/Kunal/workspaceThesis/LINDA/Data/DT/rdf/LIBSVMDATA/" + str(id) +".libsvm", "a") as libfile:
-       for subject, operatorList in subjectOperatorMap.iteritems():
-           if operator in operatorList:
-               libfile.write(construct_line("+1", [operator2Id[item] for item in operatorList if item !=operator] ))
-           else:
-               libfile.write(construct_line("-1", [operator2Id[item] for item in operatorList]))
-       libfile.close
+num_cores = multiprocessing.cpu_count()
+print "Cores: ", num_cores
+p = Pool(num_cores -4)
+p.map(process_files, operator2Id.keys())
+
+
