@@ -28,7 +28,7 @@ object DTFactGenerator {
     var DT_RULES = HDFS_MASTER + "DT/" + DATASET_NAME + "/Rules/FinalRules"
     var DT_FACTS = HDFS_MASTER + "DT/" + DATASET_NAME + "/Facts"
 
-    val operatorSubjectMap = spark.read.json(INPUT_DATASET_OPERATOR_SUBJECT_MAP)
+    val operatorSubjectMap = spark.read.json(INPUT_DATASET_OPERATOR_SUBJECT_MAP).cache()
 
     var ruleWithNames = spark.read.json(DT_RULES_RAW)
       .withColumnRenamed("operatorIds", "consequent")
@@ -37,20 +37,27 @@ object DTFactGenerator {
     def getFacts = udf((body: mutable.WrappedArray[String], head: mutable.WrappedArray[String], neg: mutable.WrappedArray[String]) => {
       body.union(neg).diff(head)
     })
-    val rulesWithFacts = ruleWithNames.join(
+    val rulesWithBodyFacts = ruleWithNames.join(
       operatorSubjectMap,
       ruleWithNames.col("body") === operatorSubjectMap.col("operator"))
       .withColumnRenamed("facts", "bodySet")
       .drop("operator")
-      .join(
-        ruleWithNames.join(operatorSubjectMap, ruleWithNames("head") === operatorSubjectMap("operator"))
-          .withColumnRenamed("facts", "headSet")
-          .drop("operator"), Seq("antecedant", "consequent", "negation", "body", "negative", "head"))
-      .join(
-        ruleWithNames.join(operatorSubjectMap, ruleWithNames("negative")
-          <=> operatorSubjectMap("operator")),
-        Seq("antecedant", "consequent", "negation", "body", "negative", "head"), "outer")
-      .withColumnRenamed("facts", "negativeSet")
+      .repartition(4)
+    val rulesWithHeadFacts = ruleWithNames.join(operatorSubjectMap, ruleWithNames("head") === operatorSubjectMap("operator"))
+      .withColumnRenamed("facts", "headSet")
+      .drop("operator")
+      .repartition(4)
+    val rulesWithNegativeFacts = ruleWithNames.join(operatorSubjectMap, ruleWithNames("negative")
+      <=> operatorSubjectMap("operator"))
+      .repartition(4)
+
+    val temp = rulesWithBodyFacts.join(rulesWithHeadFacts, Seq("antecedant", "consequent", "negation", "body", "negative", "head"))
+      .repartition(4)
+    val rulesWithFacts = temp.join(
+      rulesWithNegativeFacts,
+      Seq("antecedant", "consequent", "negation", "body", "negative", "head"), "outer").repartition(4)
+
+    val finalDF = rulesWithFacts.withColumnRenamed("facts", "negativeSet")
       .groupBy("antecedant", "consequent", "negation", "head")
       .agg(
         collect_list("body").as("ruleBody"),
@@ -62,7 +69,10 @@ object DTFactGenerator {
 
     val removeEmpty = udf((array: Seq[String]) => !array.isEmpty)
 
-    rulesWithFacts.select(col("Facts"), col("head")).
+    finalDF
+      .select("ruleBody", "ruleNeg", "head")
+      .write.mode(SaveMode.Overwrite).json(DT_RULES)
+    finalDF.select(col("Facts"), col("head")).
       filter(removeEmpty(col("Facts")))
       .withColumn("newFacts", explode(col("Facts")))
       .withColumn("conf", lit(1))
@@ -73,10 +83,6 @@ object DTFactGenerator {
         col("_tmp").getItem(1).as("o")))
       .select("conf", "triple")
       .write.mode(SaveMode.Overwrite).json(DT_FACTS)
-
-    rulesWithFacts
-      .select("ruleBody", "ruleNeg", "head")
-      .write.mode(SaveMode.Overwrite).json(DT_RULES)
 
     spark.stop
   }

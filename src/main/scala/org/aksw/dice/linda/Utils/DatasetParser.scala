@@ -46,7 +46,17 @@ object DatasetParser {
     val operatorSubjectMap = triplesDF.groupBy(col("unaryOperator"))
       .agg(collect_set(col("subject")).as("facts"))
       .withColumnRenamed("unaryOperator", "operator")
-    
+
+    val fpgrowth = new FPGrowth().setItemsCol("items")
+      .setMinSupport(0.05)
+      .setMinConfidence(0.5)
+    val model = fpgrowth.fit(subjectOperatorMap
+      .select(col("operators").as("items")))
+
+    val originalRules = model.associationRules
+    println("Number of Original Rules " + originalRules.count())
+    val removeEmpty = udf((array: Seq[String]) => !array.isEmpty)
+
     subjectOperatorMap.write.mode(SaveMode.Overwrite).json(INPUT_DATASET_SUBJECT_OPERATOR_MAP)
     operatorSubjectMap.write.mode(SaveMode.Overwrite).json(INPUT_DATASET_OPERATOR_SUBJECT_MAP)
 
@@ -54,23 +64,14 @@ object DatasetParser {
      * HORN RULE MINER
      *  NOT TO BE EXECUTED FOR DT
 */
-    val fpgrowth = new FPGrowth().setItemsCol("items")
-      .setMinSupport(0.05)
-      .setMinConfidence(0.6)
-    val model = fpgrowth.fit(subjectOperatorMap
-      .select(col("operators").as("items")))
-
-    val originalRules = model.associationRules
-    println("Number of ORiginal Rules " + originalRules.count())
-    val removeEmpty = udf((array: Seq[String]) => !array.isEmpty)
 
     val hornRules = originalRules
       .filter(removeEmpty(col("consequent")))
       .withColumn("body", explode(col("antecedent")))
       .withColumn("head", explode(col("consequent")))
-    hornRules.write.mode(SaveMode.Overwrite).json(HORN_RULES)
+      
+    hornRules.coalesce(1).write.mode(SaveMode.Overwrite).json(HORN_RULES)
     //END OF HORN RULE Miner
-
     spark.stop
 
   }

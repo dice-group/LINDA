@@ -49,7 +49,7 @@ object DTRuleMiner {
     var rulesWithId = spark.createDataFrame(spark.sparkContext.emptyRDD[Row], ruleSchema)
     val path = new Path(DT_INPUT_DATASET)
     val files = path.getFileSystem(new Configuration()).listFiles(path, true)
-    val operator2Id = spark.read.schema(operatorSchema).csv(DT_OPERATOR_ID)
+    val operator2Id = spark.read.schema(operatorSchema).csv(DT_OPERATOR_ID).cache()
 
     breakable {
       while (files.hasNext()) {
@@ -88,15 +88,21 @@ object DTRuleMiner {
         rulesWithId = rulesWithId.union(rules)
       }
     }
-    val rulesWithNames = rulesWithId.withColumn("operatorIds", explode(col("antecedant")))
+    println("Number of Rules " + rulesWithId.count())
+
+    val rulesWithBody = rulesWithId.withColumn("operatorIds", explode(col("antecedant")))
       .join(operator2Id, "operatorIds")
       .withColumnRenamed("operator", "head")
       .drop("operatorIds")
-      .join(rulesWithId.withColumn("operatorIds", explode(col("negation")))
-        .join(operator2Id, "operatorIds")
-        .withColumnRenamed("operator", "body")
-        .drop("operatorIds"), Seq("antecedant", "consequent", "negation"))
+
+    val rulesWithNegation = rulesWithId.withColumn("operatorIds", explode(col("negation")))
+      .join(operator2Id, "operatorIds")
+      .withColumnRenamed("operator", "body")
+      .drop("operatorIds")
+
+    val rulesWithBodyandHead = rulesWithBody.join(rulesWithNegation, Seq("antecedant", "consequent", "negation"))
       .withColumnRenamed("consequent", "operatorIds")
+    val rulesWithNames = rulesWithBodyandHead
       .join(operator2Id, "operatorIds")
       .withColumnRenamed("operator", "negative")
 
