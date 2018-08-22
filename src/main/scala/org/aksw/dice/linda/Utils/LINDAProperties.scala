@@ -7,7 +7,7 @@ object LINDAProperties {
    *   */
 
   final val SPARK_SYSTEM = "local[*]"
-  //final val SPARK_SYSTEM = "spark://172.18.160.16:3090"
+ // final val SPARK_SYSTEM = "spark://172.18.160.16:3090"
 
   final val SERIALIZER = "spark.serializer"
   final val KYRO_SERIALIZER = "org.apache.spark.serializer.KryoSerializer"

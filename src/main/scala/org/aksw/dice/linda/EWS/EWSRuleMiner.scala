@@ -37,14 +37,6 @@ object EWSRuleMiner {
     var INPUT_DATASET_SUBJECT_OPERATOR_MAP = HDFS_MASTER + DATASET_NAME + "/Maps/SubjectOperatorMap/"
     var INPUT_DATASET_OPERATOR_SUBJECT_MAP = HDFS_MASTER + DATASET_NAME + "/Maps/OperatorSubjectMap/"
     var HORN_RULES = HDFS_MASTER + DATASET_NAME + "/Rules/"
-
-    val hornRules = spark.read.json(HORN_RULES).repartition(1)
-    val operatorSubjectMap = spark.read.json(INPUT_DATASET_OPERATOR_SUBJECT_MAP)
-
-    //.cache()
-    val subjectOperatorMap = spark.read.json(INPUT_DATASET_SUBJECT_OPERATOR_MAP)
-    //.repartition(1)
-
     val setDiff = udf((head: mutable.WrappedArray[String], body: mutable.WrappedArray[String]) => {
       body.diff(head)
 
@@ -55,9 +47,16 @@ object EWSRuleMiner {
     def filterBody = udf((list: String, body: mutable.WrappedArray[String]) => {
       !body.contains(list)
     })
-    def removeEmpty = udf((array: Seq[String]) => !array.isEmpty)
+    def filterHead = udf((list: String, head: mutable.WrappedArray[String]) => {
+      !head.contains(list)
+    })
 
-    val operatorSupport = 0.005 * operatorSubjectMap.count
+    def removeEmpty = udf((array: Seq[String]) => !array.isEmpty)
+    val hornRules = spark.read.json(HORN_RULES).cache()
+    //.repartition(1)
+    val operatorSubjectMap = spark.read.json(INPUT_DATASET_OPERATOR_SUBJECT_MAP).cache()
+
+    val subjectOperatorMap = spark.read.json(INPUT_DATASET_SUBJECT_OPERATOR_MAP)
 
     val bodyFacts = hornRules
       .join(
@@ -65,19 +64,17 @@ object EWSRuleMiner {
         hornRules.col("body") === operatorSubjectMap.col("operator"))
       .withColumnRenamed("facts", "bodySet")
       .select("antecedent", "consequent", "bodySet")
-    //.repartition(1)
+
     val headFacts = hornRules.join(
       operatorSubjectMap,
       hornRules.col("head") === operatorSubjectMap.col("operator"))
       .withColumnRenamed("facts", "headSet")
       .select("antecedent", "consequent", "headSet")
-    //.repartition(1)
 
     val allFacts = bodyFacts.join(headFacts, Seq("antecedent", "consequent"))
       .withColumn("setDiff", setDiff(col("headSet"), col("bodySet"))) // Difference in facts between body and head
       .filter(removeEmpty(col("setDiff"))) // Not consider rules which don't have this difference
       .withColumn("subject", explode(col("setDiff")))
-    //.repartition(5)
 
     val rulesWithFactsDF = allFacts.join(subjectOperatorMap, "subject")
       .withColumn("operator", explode(col("operators")))
@@ -85,23 +82,22 @@ object EWSRuleMiner {
       .drop("subject")
       .drop("setdiff")
     //    .repartition(5)
-    // Fact List
-    println("OPERATOR SUPPORT " + operatorSupport)
+
     val ewsSupportWindown = Window.partitionBy("antecedent", "consequent", "operator")
 
     val EWSWithFactsDF = rulesWithFactsDF
-      .withColumn("support", count("operator").over(ewsSupportWindown))
-      .filter(col("support") >= operatorSupport)
       .join(operatorSubjectMap, "operator")
       .filter(filterBody(col("operator"), col("antecedent")))
+      .filter(filterHead(col("operator"), col("consequent")))
       .withColumnRenamed("facts", "operatorSet")
+      .cache()
 
     val finalRules = EWSWithFactsDF.select(col("antecedent"), col("operator").as("negation"),
       col("consequent"))
     println("Number of Exceptions " + finalRules.count())
     // finalRules.show(false)
 
-    finalRules.coalesce(1).write.mode(SaveMode.Overwrite).json(EWS_RULES)
+    finalRules.write.mode(SaveMode.Overwrite).json(EWS_RULES)
     // EWSWithFactsDF.coalesce(1).write.mode(SaveMode.Overwrite).json(EWS_FACTS_WITH_RULES)
 
     spark.stop

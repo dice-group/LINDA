@@ -45,7 +45,7 @@ object DTRuleMiner {
     var DT_RULES_RAW = HDFS_MASTER + "DT/" + DATASET_NAME + "/Rules/RawIds"
 
     var DT_INPUT_DATASET = HDFS_MASTER + "DT/" + DATASET_NAME + "/LIBSVMDATA/"
-    var DT_OPERATOR_ID = HDFS_MASTER + DATASET_NAME + "/operator2Id.csv"
+    var DT_OPERATOR_ID = HDFS_MASTER + "DT/" + DATASET_NAME + "/operator2Id.csv"
     var rulesWithId = spark.createDataFrame(spark.sparkContext.emptyRDD[Row], ruleSchema)
     val path = new Path(DT_INPUT_DATASET)
     val files = path.getFileSystem(new Configuration()).listFiles(path, true)
