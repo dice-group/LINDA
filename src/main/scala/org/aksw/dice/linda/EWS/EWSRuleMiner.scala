@@ -50,6 +50,12 @@ object EWSRuleMiner {
     def filterHead = udf((list: String, head: mutable.WrappedArray[String]) => {
       !head.contains(list)
     })
+    def getRuleSupport = udf((head: mutable.WrappedArray[String], body: mutable.WrappedArray[String], neg: mutable.WrappedArray[String]) => {
+      head.intersect(body).intersect(neg).size
+    })
+    def getBodySupport = udf((body: mutable.WrappedArray[String], neg: mutable.WrappedArray[String]) => {
+      body.intersect(neg).size
+    })
 
     def removeEmpty = udf((array: Seq[String]) => !array.isEmpty)
     val hornRules = spark.read.json(HORN_RULES).cache()
@@ -81,6 +87,7 @@ object EWSRuleMiner {
       .drop("operators")
       .drop("subject")
       .drop("setdiff")
+      .cache()
     //    .repartition(5)
 
     val ewsSupportWindown = Window.partitionBy("antecedent", "consequent", "operator")
@@ -90,6 +97,12 @@ object EWSRuleMiner {
       .filter(filterBody(col("operator"), col("antecedent")))
       .filter(filterHead(col("operator"), col("consequent")))
       .withColumnRenamed("facts", "operatorSet")
+      .withColumn("RuleSupport", getRuleSupport(
+        col("headSet"),
+        col("bodySet"), col("operatorSet")))
+      .withColumn("BodySupport", getBodySupport(col("bodySet"), col("operatorSet")))
+      .withColumn("confidence", col("RuleSupport").divide(col("BodySupport")))
+      .filter(col("confidence") >= 0.1)
       .cache()
 
     val finalRules = EWSWithFactsDF.select(col("antecedent"), col("operator").as("negation"),

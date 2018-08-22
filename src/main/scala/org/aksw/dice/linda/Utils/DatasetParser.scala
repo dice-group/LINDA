@@ -31,7 +31,11 @@ object DatasetParser {
     var INPUT_DATASET_SUBJECT_OPERATOR_MAP = HDFS_MASTER + DATASET_NAME + "/Maps/SubjectOperatorMap/"
     var INPUT_DATASET_OPERATOR_SUBJECT_MAP = HDFS_MASTER + DATASET_NAME + "/Maps/OperatorSubjectMap/"
     var HORN_RULES = HDFS_MASTER + DATASET_NAME + "/Rules/"
-
+/* val triplesDF = spark.read.rdf(Lang.NTRIPLES)(INPUT_DATASET).withColumn(
+          "unaryOperator",
+          concat(lit("<"),col("p"), lit(">::<"), col("o"),lit(">")))
+        .withColumnRenamed("s", "subject")
+*/
     val triplesDF =
       spark.createDataFrame(spark.sparkContext.textFile(INPUT_DATASET)
         .filter(!_.startsWith("#")).map(data => TripleUtils.parsTriples(data)))
@@ -49,7 +53,7 @@ object DatasetParser {
       .agg(collect_set(col("subject")).as("facts"))
       .withColumnRenamed("unaryOperator", "operator")
       .withColumn("support", getSupport(col("facts")))
-    val operatorSupport = 0.05 * operatorSubjectMap.count
+    val operatorSupport = 0.1 * operatorSubjectMap.count
 
     val fpgrowth = new FPGrowth().setItemsCol("items")
       .setMinSupport(0.01)
