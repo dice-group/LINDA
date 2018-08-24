@@ -28,13 +28,13 @@
 			<version>${scala.version}</version>
 		</dependency>
 
-		<!-- RDF Layer
+		<!-- RDF Layer -->
 		<dependency>
 			<groupId>net.sansa-stack</groupId>
 			<artifactId>sansa-rdf-spark_${scala.binary.version}</artifactId>
 			<version>${sansa.version}</version>
 		</dependency>
- -->
+
 		<!-- Apache Spark SQL -->
 		<dependency>
 			<groupId>org.apache.spark</groupId>
@@ -42,16 +42,20 @@
 			<version>${spark.version}</version>
 		</dependency>
 
-		<!-- Apache JENA 3.x 
+		<!-- Apache JENA 3.x -->
 		<dependency>
 			<groupId>org.apache.jena</groupId>
 			<artifactId>apache-jena-libs</artifactId>
 			<type>pom</type>
 			<version>${jena.version}</version>
 		</dependency>
--->
-		<!-- SANSA RDF <dependency> <groupId>net.sansa-stack</groupId> <artifactId>sansa-rdf-spark-core_${scala.binary.version}</artifactId> 
-			<version>${sansa.version}</version> </dependency> -->
+
+		<!-- SANSA RDF -->
+		<dependency>
+			<groupId>net.sansa-stack</groupId>
+			<artifactId>sansa-rdf-spark-core_${scala.binary.version}</artifactId>
+			<version>${sansa.version}</version>
+		</dependency>
 
 		<!-- https://mvnrepository.com/artifact/org.apache.spark/spark-mllib -->
 		<dependency>
