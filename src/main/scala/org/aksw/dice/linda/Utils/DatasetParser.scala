@@ -3,8 +3,8 @@ package org.aksw.dice.linda.Utils
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.functions._
-import org.apache.jena.riot.Lang
-import net.sansa_stack.rdf.spark.io.rdf._
+//import org.apache.jena.riot.Lang
+//import net.sansa_stack.rdf.spark.io.rdf._
 import org.apache.spark.sql.expressions.Window;
 import org.slf4j.LoggerFactory
 import org.apache.spark.ml.fpm.FPGrowth
@@ -32,16 +32,17 @@ object DatasetParser {
     var INPUT_DATASET_SUBJECT_OPERATOR_MAP = HDFS_MASTER + DATASET_NAME + "/Maps/SubjectOperatorMap/"
     var INPUT_DATASET_OPERATOR_SUBJECT_MAP = HDFS_MASTER + DATASET_NAME + "/Maps/OperatorSubjectMap/"
     var HORN_RULES = HDFS_MASTER + DATASET_NAME + "/Rules/"
- val triplesDF = spark.read.rdf(Lang.NTRIPLES)(INPUT_DATASET).withColumn(
+    /*val triplesDF = spark.read.rdf(Lang.NTRIPLES)(INPUT_DATASET).withColumn(
           "unaryOperator",
           concat(lit("<"),col("p"), lit(">::<"), col("o"),lit(">")))
-        .withColumnRenamed("s", "subject")
-  /*  val triplesDF =
+        .withColumnRenamed("s", "subject")*/
+    val triplesDF =
       spark.createDataFrame(spark.sparkContext.textFile(INPUT_DATASET)
         .filter(!_.startsWith("#")).map(data => TripleUtils.parsTriples(data)))
         .withColumn(
           "unaryOperator",
-          concat(col("predicate"), lit("::<"), col("object")))*/
+          concat(col("predicate"), lit("::<"), col("object")))
+
     def getSupport = udf((head: mutable.WrappedArray[String]) => {
       head.size
     })
