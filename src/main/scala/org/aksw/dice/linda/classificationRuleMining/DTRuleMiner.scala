@@ -20,7 +20,6 @@ import scala.collection.mutable.ListBuffer
 object DTRuleMiner {
 
   def main(args: Array[String]) = {
-
     val operatorSchema = StructType(
       StructField("operator", StringType, true) ::
         StructField("operatorIds", IntegerType, true) :: Nil)
